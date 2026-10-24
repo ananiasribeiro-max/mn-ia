@@ -1,0 +1,121 @@
+# ============================================================
+#  FONTES MONITORADAS PELO RADAR E PELO CLIPPING
+#
+#  tipo:
+#    proprio      -> veículos do próprio MN (para saber o que o MN já deu)
+#    concorrente  -> outros veículos do Piauí (para comparar cobertura)
+#    oficial      -> governo, prefeituras, órgãos, Diário Oficial
+#    nacional     -> portais nacionais
+#    rede         -> perfis de redes sociais (ver nota no final)
+#
+#  formato:
+#    rss  -> feed RSS/Atom (melhor opção quando existe)
+#    html -> página inicial; o coletor extrai as manchetes automaticamente
+#
+#  peso: 1 (baixo) a 3 (alto) — influencia a relevância
+#  ativo: false para desligar sem apagar
+#
+#  ATENÇÃO DESENVOLVEDOR: as URLs abaixo são o ponto de partida.
+#  Rode `mnia testar-fontes` para verificar quais respondem e ajuste.
+# ============================================================
+
+fontes:
+  # ---------- Próprio MN ----------
+  - id: meionorte
+    nome: Portal Meio News
+    tipo: proprio
+    formato: html
+    url: https://www.meionorte.com
+    peso: 3
+
+  # ---------- Concorrentes Piauí ----------
+  - id: g1pi
+    nome: g1 Piauí
+    tipo: concorrente
+    formato: rss
+    url: https://g1.globo.com/rss/g1/pi/
+    peso: 3
+
+  - id: cidadeverde
+    nome: Cidade Verde
+    tipo: concorrente
+    formato: html
+    url: https://cidadeverde.com
+    peso: 3
+
+  - id: gp1
+    nome: GP1
+    tipo: concorrente
+    formato: html
+    url: https://www.gp1.com.br
+    peso: 2
+
+  - id: portalodia
+    nome: Portal O Dia
+    tipo: concorrente
+    formato: html
+    url: https://www.portalodia.com
+    peso: 2
+
+  - id: 180graus
+    nome: 180graus
+    tipo: concorrente
+    formato: html
+    url: https://180graus.com
+    peso: 2
+
+  - id: pi24h
+    nome: Pi24h
+    tipo: concorrente
+    formato: html
+    url: https://pi24h.com
+    peso: 2
+
+  # ---------- Oficiais ----------
+  - id: governo_pi
+    nome: Governo do Piauí
+    tipo: oficial
+    formato: html
+    url: https://www.pi.gov.br/noticias
+    peso: 3
+
+  - id: pmt
+    nome: Prefeitura de Teresina
+    tipo: oficial
+    formato: html
+    url: https://pmt.pi.gov.br
+    peso: 3
+
+  - id: alepi
+    nome: Assembleia Legislativa do Piauí
+    tipo: oficial
+    formato: html
+    url: https://www.al.pi.leg.br
+    peso: 3
+
+  - id: tce_pi
+    nome: TCE-PI
+    tipo: oficial
+    formato: html
+    url: https://www.tce.pi.gov.br
+    peso: 2
+
+  # ---------- Nacionais ----------
+  - id: agencia_brasil
+    nome: Agência Brasil
+    tipo: nacional
+    formato: rss
+    url: https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml
+    peso: 1
+
+# ------------------------------------------------------------
+# REDES SOCIAIS
+# Instagram, X, TikTok e Facebook não oferecem RSS aberto.
+# Opções (decidir com o desenvolvedor na Etapa 2):
+#   a) serviço pago de monitoramento com API (ex.: ferramentas de social listening)
+#   b) APIs oficiais (Meta Graph API para páginas que o MN administra;
+#      YouTube Data API para canais públicos)
+#   c) RSS gerado por serviço intermediário para perfis públicos
+# O coletor `mnia/coletores/rede.py` está preparado para receber itens
+# de qualquer uma dessas opções no mesmo formato.
+# ------------------------------------------------------------

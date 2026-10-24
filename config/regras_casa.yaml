@@ -1,0 +1,91 @@
+# ============================================================
+#  REGRAS DA CASA — Grupo Meio Norte
+#  Editável pela direção. Toda chamada à IA recebe este conteúdo.
+#  Depois de editar, reinicie o sistema (docker compose restart).
+# ============================================================
+
+grupo: Grupo Meio Norte de Comunicação
+cidade_base: Teresina, Piauí
+
+plataformas:
+  - id: tv
+    nome: TV Meio Norte (telejornais e programas)
+  - id: radio
+    nome: Rádios do grupo (Meio Norte FM, Rádio Jornal, Boa FM, Cocais FM)
+  - id: portal
+    nome: Portal Meio News
+  - id: redes
+    nome: Redes sociais e YouTube
+
+editorias:
+  - politica
+  - cidades
+  - policia
+  - economia
+  - saude
+  - educacao
+  - interior
+  - esporte
+  - entretenimento
+  - nacional
+
+# Temas, lugares e personagens que pesam mais para o MN.
+# A IA aumenta a relevância quando encontra estes termos.
+interesse_prioritario:
+  temas:
+    - Governo do Estado do Piauí
+    - Prefeitura de Teresina
+    - Assembleia Legislativa (ALEPI)
+    - Câmara Municipal de Teresina
+    - Tribunal de Contas do Estado (TCE-PI)
+    - segurança pública no Piauí
+    - obras e infraestrutura no Piauí
+    - serviços públicos (água, energia, saúde, transporte)
+  regioes:
+    - Teresina
+    - Parnaíba
+    - Picos
+    - Floriano
+    - Piripiri
+    - Campo Maior
+    - Barras
+    - Oeiras
+    - São Raimundo Nonato
+    - Bom Jesus
+
+prioridades:
+  urgente: >
+    Fato novo de grande impacto no Piauí que deve ir ao ar ou ao portal
+    imediatamente (tragédia, prisão de autoridade, decisão judicial relevante,
+    anúncio oficial de grande alcance, interrupção de serviço essencial).
+  pauta: >
+    Assunto relevante que deve entrar na programação do dia, com apuração.
+  acompanhar: >
+    Assunto em desenvolvimento ou de interesse moderado; manter no radar.
+  descartar: >
+    Irrelevante para o público do MN, repetido, publicidade, fofoca sem
+    interesse público.
+
+risco:
+  verde: Fonte confiável e informação verificável; segue a revisão normal.
+  amarelo: >
+    Precisa de checagem extra antes de usar (fonte única, número sem origem,
+    declaração fora de contexto, tema sensível).
+  vermelho: >
+    Não usar sem confirmação de fonte primária: possível boato, conteúdo
+    suspeito ou manipulado, acusação sem prova, dado pessoal sensível,
+    envolvimento de menor de idade.
+
+# O que NUNCA sai sem aprovação humana (os agentes só sugerem).
+portoes_humanos:
+  - Qualquer publicação em portal, redes ou ida ao ar
+  - Qualquer conteúdo com risco amarelo ou vermelho
+  - Acusações contra pessoas ou empresas
+  - Uso de imagem ou nome de vítimas e menores
+  - Material patrocinado ou comercial
+
+estilo:
+  - Linguagem clara e direta, para o público do Piauí.
+  - Verbos declarativos neutros (disse, afirmou, declarou).
+  - Nunca inventar fatos, números, nomes ou declarações.
+  - Se a informação não está no texto de origem, dizer que não está.

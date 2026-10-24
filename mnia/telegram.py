@@ -1,0 +1,81 @@
+"""Envio de mensagens para os grupos do Telegram.
+
+Sem token configurado, ou em modo simulado, as mensagens são impressas
+no console e gravadas em dados/telegram_simulado.log.
+"""
+from __future__ import annotations
+
+import html
+import logging
+from datetime import datetime
+from pathlib import Path
+
+import httpx
+
+from .config import RAIZ, config
+from .db import Alerta, sessao
+
+log = logging.getLogger("mnia.telegram")
+LIMITE = 4000  # Telegram aceita 4096; margem para tags
+
+
+def esc(texto: str | None) -> str:
+    """Escapa texto para o modo HTML do Telegram."""
+    return html.escape(texto or "", quote=False)
+
+
+def _partes(texto: str) -> list[str]:
+    if len(texto) <= LIMITE:
+        return [texto]
+    partes, atual = [], ""
+    for bloco in texto.split("\n\n"):
+        if len(atual) + len(bloco) + 2 > LIMITE and atual:
+            partes.append(atual)
+            atual = ""
+        atual += ("\n\n" if atual else "") + bloco
+    if atual:
+        partes.append(atual)
+    return partes
+
+
+def _simular(canal: str, texto: str) -> None:
+    arq = RAIZ / "dados" / "telegram_simulado.log"
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    with arq.open("a", encoding="utf-8") as f:
+        f.write(f"\n===== [{datetime.now():%Y-%m-%d %H:%M:%S}] canal={canal} =====\n{texto}\n")
+    print(f"\n----- TELEGRAM ({canal}) -----\n{texto}\n")
+
+
+def enviar(canal: str, texto: str, *, tipo: str, item_id: int | None = None) -> bool:
+    """Envia texto (HTML do Telegram) para um chat. Retorna True se entregue."""
+    cfg = config()
+    sucesso = True
+    if not cfg.telegram_token or not canal or cfg.simulado:
+        _simular(canal or "sem-canal", texto)
+    else:
+        url = f"https://api.telegram.org/bot{cfg.telegram_token}/sendMessage"
+        for parte in _partes(texto):
+            try:
+                r = httpx.post(url, json={
+                    "chat_id": canal, "text": parte, "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                }, timeout=20)
+                if r.status_code != 200:
+                    sucesso = False
+                    log.error("Telegram %s: %s", r.status_code, r.text[:300])
+            except httpx.HTTPError as e:
+                sucesso = False
+                log.error("Telegram falhou: %s", e)
+    try:
+        with sessao() as s:
+            s.add(Alerta(item_id=item_id, tipo=tipo, canal=canal or "simulado",
+                         texto=texto[:10000], sucesso=sucesso))
+    except Exception as e:
+        log.warning("Falha ao registrar alerta: %s", e)
+    return sucesso
+
+
+def alerta_tecnico(modulo: str, erro: str) -> None:
+    cfg = config()
+    enviar(cfg.chat_tecnico, f"⚠️ <b>MN-IA — erro em {esc(modulo)}</b>\n<code>{esc(erro[:1500])}</code>",
+           tipo="tecnico")

@@ -1,0 +1,61 @@
+# ============================================================
+#  MN-IA para o Docker Manager da Hostinger (sem terminal)
+#
+#  1. Troque SEU-USUARIO pelo seu usuário do GitHub (minúsculas).
+#  2. No hPanel: VPS → Gerenciar → Docker Manager → Compose
+#     → "Compose manualmente" → cole este arquivo.
+#  3. Preencha as variáveis de ambiente no próprio painel
+#     (ou substitua os ${...} abaixo pelos valores).
+#  4. Deploy.
+#
+#  Regras e fontes vêm dentro da imagem. Para mudar:
+#  edite config/*.yaml no GitHub → a imagem é reconstruída
+#  sozinha → no Docker Manager, clique em atualizar/redeploy.
+# ============================================================
+name: mn-ia
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mnia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: mnia
+    volumes:
+      - mnia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mnia"]
+      interval: 10s
+      retries: 5
+
+  mnia:
+    image: ghcr.io/SEU-USUARIO/mn-ia:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MNIA_DATABASE_URL: postgresql+psycopg://mnia:${POSTGRES_PASSWORD}@db:5432/mnia
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      MNIA_MODELO_CLASSIFICACAO: claude-haiku-5-5
+      MNIA_MODELO_REDACAO: claude-sonnet-5-5
+      MNIA_MODELO_ANALISE: claude-opus-5-5
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_RADAR: ${TELEGRAM_CHAT_RADAR}
+      TELEGRAM_CHAT_CLIPPING: ${TELEGRAM_CHAT_CLIPPING}
+      TELEGRAM_CHAT_TRIAGEM: ${TELEGRAM_CHAT_TRIAGEM}
+      TELEGRAM_CHAT_TECNICO: ${TELEGRAM_CHAT_TECNICO}
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_USUARIO: ${IMAP_USUARIO:-}
+      IMAP_SENHA: ${IMAP_SENHA:-}
+      MNIA_SIMULADO: "0"
+      MNIA_FUSO: America/Fortaleza
+      MNIA_RADAR_INTERVALO_MIN: "5"
+      MNIA_CLIPPING_HORARIO: "05:30"
+    volumes:
+      - mnia_dados:/app/dados
+
+volumes:
+  mnia_pgdata:
+  mnia_dados:
