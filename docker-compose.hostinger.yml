@@ -1,7 +1,7 @@
 # ============================================================
 #  MN-IA para o Docker Manager da Hostinger (sem terminal)
 #
-#  1. Troque SEU-USUARIO pelo seu usuário do GitHub (minúsculas).
+#  1. Imagem já configurada para ananiasribeiro-max.
 #  2. No hPanel: VPS → Gerenciar → Docker Manager → Compose
 #     → "Compose manualmente" → cole este arquivo.
 #  3. Preencha as variáveis de ambiente no próprio painel
@@ -30,7 +30,7 @@ services:
       retries: 5
 
   mnia:
-    image: ghcr.io/SEU-USUARIO/mn-ia:latest
+    image: ghcr.io/ananiasribeiro-max/mn-ia:latest
     restart: unless-stopped
     depends_on:
       db:
