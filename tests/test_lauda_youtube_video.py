@@ -136,7 +136,7 @@ def test_processar_video_completo(monkeypatch, tmp_path):
     assert r["status"] == "ok" and r["materias"] == 1 and r["cortes"] == 1
     with sessao() as s:
         tipos = sorted(a.tipo for a in s.scalars(select(Alerta)))
-        assert tipos == ["materia", "post"]  # o corte simulado não grava alerta, só o log simulado
+        assert tipos == ["legenda", "materia", "post"]  # legenda social do corte + matéria + post
         assert s.get(Item, item_id).analisado is True
 
 

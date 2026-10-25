@@ -71,14 +71,24 @@ def _enviar_cortes(item_id: int, vid: str, url: str, titulo: str, cortes: list, 
     for n, c in enumerate(cortes, 1):
         try:
             arq = vc.gerar_corte(vid, url, c, trechos, n, modelo=c.get("modelo"))
-            leg = (f"🎬 <b>CORTE {n}</b> — {esc(c.get('titulo', ''))}\n"
-                   f"{esc(c.get('inicio', ''))}–{esc(c.get('fim', ''))} de <a href=\"{esc(url)}\">{esc(titulo)}</a>\n\n"
-                   f"<b>Legenda sugerida:</b> {esc(c.get('legenda', ''))}\n"
+            nome = c.get("citacao") if c.get("modelo") == "central" else c.get("titulo", "")
+            leg = (f"🎬 <b>CORTE {n}</b> — {esc(nome or '')}\n"
+                   f"{esc(c.get('inicio', ''))}–{esc(c.get('fim', ''))} de <a href=\"{esc(url)}\">{esc(titulo)}</a>\n"
                    f"<i>Por que: {esc(c.get('motivo', ''))}</i>\n"
-                   f"<i>1080x1920 (9:16), pronto para Reels e Shorts. Aprovar antes de publicar.</i>")
+                   f"<i>1080x1920 (9:16), pronto para Reels e Shorts. Legendas na mensagem abaixo. "
+                   f"Aprovar antes de publicar.</i>")
             enviar_video(cfg.chat_cortes, arq, leg, item_id=item_id,
                          duracao=vc.duracao(arq), capa=vc.gerar_capa(arq))
             feitos += 1
+            try:  # legenda completa (Instagram, Shorts, TikTok) no padrão do projeto Jornalista Instagram
+                from ..digital import legenda_social
+                from ..video.layouts import Marca
+                marca = Marca.do_ambiente()
+                programa = "Central Meio Norte" if c.get("modelo") == "central" else marca.programa.title()
+                r = legenda_social.gerar(c, trechos, titulo, programa=programa, chamada=marca.chamada.lower())
+                enviar(cfg.chat_cortes, legenda_social.formatar(r, nome or titulo), tipo="legenda", item_id=item_id)
+            except Exception as e:
+                log.warning("Legenda social do corte %s falhou: %s", n, e)
         except Exception as e:
             falhas.append(f"corte {n}: {type(e).__name__}: {str(e)[:200]}")
             log.warning("Corte %s de %s falhou: %s", n, vid, e)
