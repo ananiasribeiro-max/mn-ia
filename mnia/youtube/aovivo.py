@@ -135,9 +135,18 @@ def baixar(url: str, ini: float, fim: float, destino: Path, *, so_audio: bool, a
     return arqs[0]
 
 
+def _pcm16k(arquivo: Path):
+    """Áudio em float32 mono 16 kHz via ffmpeg (evita depender da versão do PyAV)."""
+    import subprocess
+    import numpy as np
+    bruto = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-i", str(arquivo), "-f", "s16le",
+                            "-ac", "1", "-ar", "16000", "-"], capture_output=True, check=True, timeout=600).stdout
+    return np.frombuffer(bruto, np.int16).astype(np.float32) / 32768.0
+
+
 def transcrever(arquivo: Path, deslocamento: float, modelo: str = "base") -> tuple[list[Trecho], list[tuple[float, float, str]]]:
     """Devolve (trechos por frase, palavras com tempo), já no relógio da transmissão."""
-    segs, _ = _modelo(modelo).transcribe(str(arquivo), language="pt", vad_filter=True, word_timestamps=True,
+    segs, _ = _modelo(modelo).transcribe(_pcm16k(arquivo), language="pt", vad_filter=True, word_timestamps=True,
                                          beam_size=1 if modelo in ("tiny", "base") else 5)
     trechos, palavras = [], []
     for s in segs:
