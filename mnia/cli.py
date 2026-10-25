@@ -82,8 +82,8 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="mnia", description="MN-IA — IA como infraestrutura do Meio Norte")
     p.add_argument("comando", choices=["init-db", "status", "testar-fontes", "radar", "resumo",
                                        "clipping", "triagem", "saude", "rodar", "demo",
-                                       "laudas", "youtube", "video"])
-    p.add_argument("alvo", nargs="?", help="para 'video': endereço de um vídeo do YouTube")
+                                       "laudas", "youtube", "video", "recortar"])
+    p.add_argument("alvo", nargs="?", help="para 'video'/'recortar': endereço de um vídeo do YouTube")
     a = p.parse_args(argv)
     _log()
 
@@ -124,10 +124,10 @@ def main(argv: list[str] | None = None) -> None:
         from .youtube.pipeline import rodar_youtube
         e = rodar_youtube()
         print(f"YouTube: {e.itens_novos} novos, {e.itens_analisados} processados, erros: {e.erros}")
-    elif a.comando == "video":
+    elif a.comando in ("video", "recortar"):
         # processa um vídeo específico agora (teste ou pedido avulso)
         from .db import Item, gerar_hash, sessao
-        from .youtube.pipeline import processar_video
+        from .youtube.pipeline import processar_video, refazer_cortes
         import re as _re
         m = _re.search(r"(?:v=|youtu\.be/|shorts/|live/)([\w-]{11})", a.alvo or "")
         if not m:
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> None:
                 s.add(item)
                 s.flush()
             item_id = item.id
-        print(processar_video(item_id))
+        print(refazer_cortes(item_id) if a.comando == "recortar" else processar_video(item_id))
     elif a.comando == "demo":
         from .demo import rodar_demo
         rodar_demo()

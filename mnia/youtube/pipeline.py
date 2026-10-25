@@ -65,6 +65,41 @@ def _marcar(item_id: int, **campos) -> None:
             item.analisado = campos["analisado"]
 
 
+def _enviar_cortes(item_id: int, vid: str, url: str, titulo: str, cortes: list, trechos) -> tuple[int, list]:
+    cfg = config()
+    feitos, falhas = 0, []
+    for n, c in enumerate(cortes, 1):
+        try:
+            arq = vc.gerar_corte(vid, url, c, trechos, n)
+            leg = (f"🎬 <b>CORTE {n}</b> — {esc(c.get('titulo', ''))}\n"
+                   f"{esc(c.get('inicio', ''))}–{esc(c.get('fim', ''))} de <a href=\"{esc(url)}\">{esc(titulo)}</a>\n\n"
+                   f"<b>Legenda sugerida:</b> {esc(c.get('legenda', ''))}\n"
+                   f"<i>Por que: {esc(c.get('motivo', ''))}</i>\n"
+                   f"<i>1080x1920 (9:16), pronto para Reels e Shorts. Aprovar antes de publicar.</i>")
+            enviar_video(cfg.chat_digital, arq, leg, item_id=item_id,
+                         duracao=vc.duracao(arq), capa=vc.gerar_capa(arq))
+            feitos += 1
+        except Exception as e:
+            falhas.append(f"corte {n}: {type(e).__name__}: {str(e)[:200]}")
+            log.warning("Corte %s de %s falhou: %s", n, vid, e)
+    return feitos, falhas
+
+
+def refazer_cortes(item_id: int) -> dict:
+    """Gera e envia de novo só os cortes de um vídeo já processado."""
+    with sessao() as s:
+        it = s.get(Item, item_id)
+        vid, url, titulo, descricao = it.analise_extra["video_id"], it.url, it.titulo, it.texto or ""
+        cortes = (it.analise_extra or {}).get("cortes_def")
+    trechos, info = legendas.obter(url)
+    if not cortes:
+        duracao = float(info.get("duration") or trechos[-1].fim)
+        cortes = dig.gerar(titulo, descricao, legendas.transcricao_compacta(trechos), duracao).get("cortes", [])
+    feitos, falhas = _enviar_cortes(item_id, vid, url, titulo, cortes, trechos)
+    _marcar(item_id, cortes=feitos, cortes_def=cortes, falhas_cortes=falhas or None)
+    return {"cortes": feitos, "falhas": falhas}
+
+
 def processar_video(item_id: int) -> dict:
     cfg = config()
     with sessao() as s:
@@ -99,23 +134,12 @@ def processar_video(item_id: int) -> dict:
         enviar(cfg.chat_digital, dig.formatar_post(resultado["post_redes"], titulo, url), tipo="post",
                item_id=item_id)
 
-    feitos, falhas = 0, []
-    if cfg.cortes_ligados:
-        for n, c in enumerate(resultado.get("cortes", []), 1):
-            try:
-                arq = vc.gerar_corte(vid, url, c, trechos, n)
-                leg = (f"🎬 <b>CORTE {n}</b> — {esc(c.get('titulo', ''))}\n"
-                       f"{esc(c.get('inicio', ''))}–{esc(c.get('fim', ''))} de <a href=\"{esc(url)}\">{esc(titulo)}</a>\n\n"
-                       f"<b>Legenda sugerida:</b> {esc(c.get('legenda', ''))}\n"
-                       f"<i>Por que: {esc(c.get('motivo', ''))}</i>\n<i>Aprovar antes de publicar.</i>")
-                enviar_video(cfg.chat_digital, arq, leg, item_id=item_id)
-                feitos += 1
-            except Exception as e:
-                falhas.append(f"corte {n}: {type(e).__name__}: {str(e)[:200]}")
-                log.warning("Corte %s de %s falhou: %s", n, vid, e)
+    feitos, falhas = (_enviar_cortes(item_id, vid, url, titulo, resultado.get("cortes", []), trechos)
+                      if cfg.cortes_ligados else (0, []))
 
     _marcar(item_id, analisado=True, processado=True, materias=len(materias), cortes=feitos,
-            falhas_cortes=falhas or None, duracao=duracao)
+            falhas_cortes=falhas or None, duracao=duracao,
+            cortes_def=resultado.get("cortes", []))
     return {"status": "ok", "materias": len(materias), "cortes": feitos, "falhas": falhas}
 
 

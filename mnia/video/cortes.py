@@ -97,25 +97,43 @@ def montar_vertical(entrada: Path, saida: Path, titulo: str, srt: str) -> Path:
         "[fundo][frente]overlay=(W-w)/2:(H-h)/2[base]",
         (f"[base]drawtext=fontfile={FONTE}:textfile='{_escapar_drawtext(arq_titulo)}':"
          "fontcolor=white:fontsize=64:line_spacing=12:box=1:boxcolor=0xC8102E@0.92:boxborderw=24:"
-         "x=(w-text_w)/2:y=230[tit]"),
+         "x=(w-text_w)/2:y=270[tit]"),
     ]
     if srt.strip():
-        estilo = ("FontName=DejaVu Sans,Bold=1,FontSize=10,PrimaryColour=&H00FFFFFF,"
-                  "OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=38")
-        filtros.append(f"[tit]subtitles='{_escapar_drawtext(arq_srt)}':force_style='{estilo}'[v]")
-        saida_video = "[v]"
+        estilo = ("FontName=DejaVu Sans,Bold=1,FontSize=9,PrimaryColour=&H00FFFFFF,"
+                  "OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=48")
+        filtros.append(f"[tit]subtitles='{_escapar_drawtext(arq_srt)}':force_style='{estilo}',setsar=1[v]")
     else:
-        saida_video = "[tit]"
+        filtros.append("[tit]setsar=1[v]")
+    saida_video = "[v]"
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(entrada),
            "-filter_complex", ";".join(filtros), "-map", saida_video, "-map", "0:a?",
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-r", "30", str(saida)]
+           "-profile:v", "high", "-level", "4.1", "-aspect", "9:16",
+           "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-movflags", "+faststart", "-r", "30", str(saida)]
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     if proc.returncode != 0:
         raise ErroCorte("ffmpeg: " + proc.stderr[-500:])
     for tmp in (arq_titulo, arq_srt):
         tmp.unlink(missing_ok=True)
     return saida
+
+
+def gerar_capa(video: Path) -> Path | None:
+    """Miniatura 180x320 (exigência do Telegram para mostrar o vídeo em pé)."""
+    capa = video.with_suffix(".jpg")
+    proc = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1", "-i", str(video), "-frames:v", "1",
+                           "-vf", "scale=180:320,setsar=1", "-q:v", "4", str(capa)], capture_output=True, timeout=60)
+    return capa if proc.returncode == 0 and capa.exists() else None
+
+
+def duracao(video: Path) -> int:
+    proc = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                           str(video)], capture_output=True, text=True, timeout=30)
+    try:
+        return int(round(float(proc.stdout.strip())))
+    except ValueError:
+        return 0
 
 
 def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho], n: int) -> Path:

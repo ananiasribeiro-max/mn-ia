@@ -85,7 +85,8 @@ def alerta_tecnico(modulo: str, erro: str) -> None:
 LIMITE_VIDEO = 49 * 1024 * 1024  # bots do Telegram enviam até 50 MB
 
 
-def enviar_video(canal: str, caminho: Path, legenda: str, *, item_id: int | None = None) -> bool:
+def enviar_video(canal: str, caminho: Path, legenda: str, *, item_id: int | None = None,
+                 largura: int = 1080, altura: int = 1920, duracao: int = 0, capa: Path | None = None) -> bool:
     """Envia um vídeo (corte) para aprovação. Acima de 50 MB, avisa e não envia."""
     cfg = config()
     tamanho = caminho.stat().st_size
@@ -98,10 +99,21 @@ def enviar_video(canal: str, caminho: Path, legenda: str, *, item_id: int | None
     url = f"https://api.telegram.org/bot{cfg.telegram_token}/sendVideo"
     sucesso = True
     try:
+        # largura/altura/capa: sem elas o Telegram exibe o vertical achatado
+        dados = {"chat_id": canal, "caption": legenda[:1024], "parse_mode": "HTML",
+                 "supports_streaming": "true", "width": str(largura), "height": str(altura)}
+        if duracao:
+            dados["duration"] = str(duracao)
         with caminho.open("rb") as f:
-            r = httpx.post(url, data={"chat_id": canal, "caption": legenda[:1024], "parse_mode": "HTML",
-                                      "supports_streaming": "true"},
-                           files={"video": (caminho.name, f, "video/mp4")}, timeout=180)
+            arquivos = {"video": (caminho.name, f, "video/mp4")}
+            fc = capa.open("rb") if capa and capa.exists() else None
+            if fc:
+                arquivos["thumbnail"] = (capa.name, fc, "image/jpeg")
+            try:
+                r = httpx.post(url, data=dados, files=arquivos, timeout=180)
+            finally:
+                if fc:
+                    fc.close()
         if r.status_code != 200:
             sucesso = False
             log.error("Telegram vídeo %s no chat %s: %s", r.status_code, canal, r.text[:300])
