@@ -23,12 +23,17 @@ BOLD = FONTES / "Poppins-Bold.ttf"
 MEDIUM = FONTES / "Poppins-Medium.ttf"
 ITALICO = FONTES / "Poppins-BoldItalic.ttf"
 LOGO = RAIZ / "dados" / "marca" / "logo.png"
+LOGO_PADRAO = Path(__file__).resolve().parent.parent.parent / "assets" / "marca" / "logo_central.png"
+INTER_XB = FONTES / "InterDisplay-ExtraBold.otf"
+INTER_BLACK = FONTES / "InterDisplay-Black.otf"
+INTER_MED = FONTES / "InterDisplay-Medium.otf"
 
 AZUL = "0x202C68"
 VERMELHO = "0xD71920"
 AMARELO = "0xFFD200"
 
 MODELOS = {
+    "mn": "Modelo MN — vídeo no alto, faixa com selo do programa e horário, manchete com destaque amarelo",
     "card": "Card Meio Norte — evolução do modelo atual (manchete no card branco, vídeo 16:9, faixa do programa)",
     "cheia": "Tela cheia — vídeo ocupando a tela, manchete em tarja vermelha e legenda grande palavra a palavra",
     "manchete": "Manchete de portal — manchete grande em fundo branco, vídeo 4:3 e rodapé da marca",
@@ -39,7 +44,7 @@ MODELOS = {
 class Marca:
     programa: str = "CENTRAL MEIO NORTE"
     perfil: str = "@centralmeionorte"
-    chamada: str = "DE SEGUNDA A SEXTA, 7H30"
+    chamada: str = "SEG A SEX · 7H30"
     site: str = "MEIONORTE.COM"
     editoria: str = ""
 
@@ -79,13 +84,14 @@ def _ts_ass(seg: float) -> str:
 
 
 ESTILOS_ASS = {
+    "mn": ("Inter Display ExtraBold", 56, "&H00FFFFFF", "&H00000000", 1, 5, 2, 0),
     # nome: (fonte, tamanho, cor primária, cor contorno/caixa, borda, contorno, alinhamento, margemV)
     "card": ("Poppins", 66, "&H00682C20", "&H0000D2FF", 3, 16, 2, 0),
     "cheia": ("Poppins", 86, "&H00FFFFFF", "&H00000000", 1, 7, 2, 0),
     "manchete": ("Poppins", 62, "&H00FFFFFF", "&H00000000", 3, 14, 2, 0),
 }
 # Onde a legenda fica (centro vertical em px) em cada modelo
-LEGENDA_Y = {"card": 1405, "cheia": 1330, "manchete": 1335}
+LEGENDA_Y = {"mn": 965, "card": 1405, "cheia": 1330, "manchete": 1335}
 
 
 def ass_legenda(modelo: str, trechos, ini: float, fim: float, y: int | None = None) -> str:
@@ -115,7 +121,7 @@ def ass_legenda(modelo: str, trechos, ini: float, fim: float, y: int | None = No
         passo = (b - a) / len(grupos)
         for g, grupo in enumerate(grupos):
             gi, gf = a + g * passo, a + (g + 1) * passo
-            if modelo == "cheia":
+            if modelo in ("cheia",):
                 p_passo = (gf - gi) / len(grupo)
                 for w in range(len(grupo)):
                     txt = " ".join(("{\\c&H0000D2FF&}" + p + "{\\c&H00FFFFFF&}") if k == w else p
@@ -138,11 +144,85 @@ def _quebrar(texto: str, largura: int, max_linhas: int) -> str:
     return "\n".join(linhas)
 
 
+def quebrar_px(texto: str, fonte: Path, tam: int, largura: int) -> list[str]:
+    """Quebra por largura real em pixels (mede com a própria fonte)."""
+    from PIL import ImageFont
+    f = ImageFont.truetype(str(fonte), tam)
+    linhas, atual = [], ""
+    for p in texto.split():
+        teste = f"{atual} {p}".strip()
+        if atual and f.getlength(teste) > largura:
+            linhas.append(atual)
+            atual = p
+        else:
+            atual = teste
+    if atual:
+        linhas.append(atual)
+    return linhas
+
+
+def manchete_mn(titulo: str, destaque: str = "") -> tuple[list[str], set[int], int]:
+    """Linhas da manchete, índices das linhas em destaque e tamanho da fonte."""
+    for tam in (76, 68, 60):
+        linhas = quebrar_px(titulo, INTER_BLACK, tam, 940)
+        if len(linhas) <= 4:
+            break
+    linhas = linhas[:4]
+    marcadas: set[int] = set()
+    d = " ".join(destaque.split()).lower()
+    if d and d in " ".join(linhas).lower():
+        pos, ini = 0, " ".join(linhas).lower().index(d)
+        for i, l in enumerate(linhas):
+            a, b = pos, pos + len(l)
+            if a < ini + len(d) and b > ini:
+                marcadas.add(i)
+            pos = b + 1
+    if not marcadas and len(linhas) > 1:
+        marcadas = {len(linhas) - 2, len(linhas) - 1} if len(linhas) >= 3 else {len(linhas) - 1}
+    return linhas, marcadas, tam
+
+
 def filtros(modelo: str, titulo: str, marca: Marca, pasta: Path, ass: Path | None,
-            tem_logo: bool) -> tuple[list[str], str]:
+            tem_logo: bool, destaque: str = "") -> tuple[list[str], str]:
     """Devolve (lista de filtros, rótulo final). Entrada 0 = vídeo; entrada 1 = logo (se houver)."""
     f: list[str] = []
     leg = f"subtitles='{_esc(ass)}':fontsdir='{_esc(FONTES)}'" if ass else "null"
+
+    if modelo == "mn":
+        AZUL_FX, AZUL_FD, AMAR = "0x141F45", "0x1E2F63", "0xFFC72C"
+        f += [
+            f"color=c={AZUL_FD}:s=1080x1920:r=30[fundo]",
+            "[0:v]scale=1080:1040:force_original_aspect_ratio=increase,crop=1080:1040,setsar=1[vid]",
+            "[fundo][vid]overlay=0:0:shortest=1[b00]",
+            f"[b00]{leg}[b0]",
+            f"[b0]drawbox=x=0:y=1040:w=1080:h=160:color={AZUL_FX}:t=fill,"
+            "drawbox=x=713:y=1078:w=2:h=84:color=0x3F4F86:t=fill[b1]",
+        ]
+        rot = "b1"
+        x_nome = 60
+        if tem_logo:
+            f += ["[1:v]scale=116:116[logo]", "[b1][logo]overlay=56:1062[b2]"]
+            rot, x_nome = "b2", 195
+        f += [
+            _dt(rot, "c1", _texto(pasta, "prog.txt", marca.programa), INTER_BLACK, 34, "white", str(x_nome), "1086"),
+            _dt("c1", "c2", _texto(pasta, "perfil.txt", marca.perfil), INTER_MED, 26, "0xC9D1EA", str(x_nome), "1131"),
+            _dt("c2", "c3", _texto(pasta, "chamada.txt", marca.chamada), INTER_BLACK, 30, "white",
+                "1022-text_w", "1085"),
+            _dt("c3", "c4", _texto(pasta, "marca.txt", "meionorte"), INTER_BLACK, 34, "white",
+                "1022-text_w", "1122"),
+        ]
+        linhas, marcadas, tam = manchete_mn(titulo, destaque)
+        passo = int(tam * 1.04)
+        ant = "c4"
+        for i, l in enumerate(linhas):
+            y = 1268 + i * passo
+            extra = (f":box=1:boxcolor={AMAR}:boxborderw=8" if i in marcadas else "")
+            cor = AZUL_FD if i in marcadas else "white"
+            x = "72" if i in marcadas else "64"
+            f.append(_dt(ant, f"h{i}", _texto(pasta, f"l{i}.txt", l), INTER_BLACK, tam, cor, x, str(y), extra))
+            ant = f"h{i}"
+        f.append(f"[{ant}]setsar=1[v]")
+        return f, "[v]"
 
     if modelo == "card":
         manchete = _quebrar(titulo, 27, 4)
@@ -227,6 +307,8 @@ def filtros(modelo: str, titulo: str, marca: Marca, pasta: Path, ass: Path | Non
 
 def legenda_y(modelo: str, titulo: str) -> int:
     """Centro vertical da legenda, ajustado à altura da manchete em cada modelo."""
+    if modelo == "mn":
+        return 965
     if modelo == "card":
         n = _quebrar(titulo, 27, 4).count("\n") + 1
         y_video = 230 + 175 + n * 86 + 30
@@ -241,7 +323,7 @@ def legenda_y(modelo: str, titulo: str) -> int:
 
 
 def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, ini: float, fim: float,
-               marca: Marca | None = None, duracao_max: float | None = None) -> Path:
+               marca: Marca | None = None, duracao_max: float | None = None, destaque: str = "") -> Path:
     """Monta o corte vertical no modelo escolhido. trechos em tempo do vídeo original; ini/fim do corte."""
     import shutil
     import subprocess
@@ -254,11 +336,11 @@ def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, in
     try:
         ass = pasta / "legenda.ass"
         ass.write_text(ass_legenda(modelo, trechos, ini, fim, legenda_y(modelo, titulo)), encoding="utf-8")
-        tem_logo = LOGO.exists()
-        grafo, rotulo = filtros(modelo, titulo, marca, pasta, ass, tem_logo)
+        logo = LOGO if LOGO.exists() else (LOGO_PADRAO if modelo == "mn" and LOGO_PADRAO.exists() else None)
+        grafo, rotulo = filtros(modelo, titulo, marca, pasta, ass, logo is not None, destaque)
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(entrada)]
-        if tem_logo:
-            cmd += ["-i", str(LOGO)]
+        if logo:
+            cmd += ["-i", str(logo)]
         cmd += ["-filter_complex", ";".join(grafo), "-map", rotulo, "-map", "0:a?"]
         if duracao_max:
             cmd += ["-t", f"{duracao_max:.2f}"]

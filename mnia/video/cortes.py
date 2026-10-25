@@ -140,13 +140,14 @@ def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho
                 modelo: str | None = None) -> Path:
     import os
     from . import layouts
-    modelo = modelo or os.getenv("MNIA_CORTE_MODELO", "card")
+    modelo = modelo or os.getenv("MNIA_CORTE_MODELO", "mn")
     ini, fim = float(corte["ini_s"]), float(corte["fim_s"])
     pasta = PASTA / video_id
     bruto = baixar_trecho(video_url, ini, fim, pasta / f"bruto_{n}.mp4")
     try:
         saida = pasta / f"{n:02d}-{modelo}-{nome_seguro(corte.get('titulo', 'corte'))}.mp4"
-        return layouts.renderizar(bruto, saida, modelo, corte.get("titulo", ""), trechos, ini, fim)
+        return layouts.renderizar(bruto, saida, modelo, corte.get("titulo", ""), trechos, ini, fim,
+                                  destaque=corte.get("destaque", ""))
     finally:
         bruto.unlink(missing_ok=True)
 
@@ -159,7 +160,8 @@ def comparar_modelos(video_id: str, video_url: str, corte: dict, trechos: list[T
     bruto = baixar_trecho(video_url, ini, fim, pasta / "bruto_modelos.mp4")
     try:
         return [(m, layouts.renderizar(bruto, pasta / f"modelo-{m}.mp4", m, corte.get("titulo", ""),
-                                       trechos, ini, fim)) for m in layouts.MODELOS]
+                                       trechos, ini, fim, destaque=corte.get("destaque", "")))
+                for m in layouts.MODELOS]
     finally:
         bruto.unlink(missing_ok=True)
 

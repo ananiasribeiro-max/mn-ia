@@ -34,8 +34,9 @@ Produza rascunhos para o portal e as redes:
    para o vídeo, sem hashtags em excesso (no máximo 3).
 3. "cortes": até {n} trechos para vídeo curto vertical (Reels/Shorts/TikTok), cada um
    com 30 a 90 segundos, que se sustentem sozinhos (começo e fim de frase, sem depender
-   de contexto). Cada corte: {{"inicio":"mm:ss","fim":"mm:ss","titulo":"texto de tela
-   até 60 caracteres","legenda":"legenda do post até 200 caracteres","motivo":"por que esse trecho"}}.
+   de contexto). Cada corte: {{"inicio":"mm:ss","fim":"mm:ss","titulo":"manchete de tela no estilo
+   portal, factual, 50 a 90 caracteres","destaque":"trecho LITERAL do título (3 a 6 palavras, o
+   núcleo da notícia) que vai em destaque amarelo","legenda":"legenda do post até 200 caracteres","motivo":"por que esse trecho"}}.
    Prefira: declaração forte, informação de serviço, momento emocionante, revelação.
 
 Se o vídeo não tiver conteúdo jornalístico (vinheta, chamada curta, música),
