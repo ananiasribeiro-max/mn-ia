@@ -21,10 +21,11 @@ from ..coletores import ItemColetado, caixa_entrada, coletar_fonte
 from ..db import Execucao, Item, agora, gerar_hash, item_existe, sessao
 from ..telegram import alerta_tecnico, enviar
 from . import mensagens
+from ..llm import ErroLLM
 from .classificador import classificar, normalizar_analise
 
 log = logging.getLogger("mnia.radar")
-LOTE = 15
+LOTE = 10
 
 
 def _utc_naive(dt: datetime | None) -> datetime | None:
@@ -99,9 +100,21 @@ def analisar_pendentes(origem: str = "radar", limite: int | None = None) -> int:
                   "peso": (i.analise_extra or {}).get("peso", 1)} for i in pendentes]
 
     total = 0
-    for ini in range(0, len(dados), LOTE):
-        lote = dados[ini:ini + LOTE]
-        analises = classificar(lote, assuntos_recentes(), modulo=origem)
+    fila = [dados[i:i + LOTE] for i in range(0, len(dados), LOTE)]
+    while fila:
+        lote = fila.pop(0)
+        try:
+            analises = classificar(lote, assuntos_recentes(), modulo=origem)
+        except ErroLLM as e:
+            # Um lote problemático não derruba a rodada: divide em dois e tenta de novo;
+            # um item isolado que ainda falha fica para a próxima rodada.
+            if len(lote) > 1:
+                meio = len(lote) // 2
+                fila[:0] = [lote[:meio], lote[meio:]]
+                log.warning("Lote de %d itens falhou; dividindo. (%s)", len(lote), e)
+            else:
+                log.warning("Item %s não analisado nesta rodada: %s", lote[0]["id"], e)
+            continue
         por_id = {int(a["id"]): normalizar_analise(a) for a in analises if str(a.get("id")).isdigit()}
         with sessao() as s:
             for d in lote:

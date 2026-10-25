@@ -119,7 +119,7 @@ def classificar(itens: list[dict], assuntos_recentes: list[str], *, modulo: str 
         tarefa=_tarefa(),
         conteudo=montar_conteudo(itens, assuntos_recentes),
         modelo=config().modelo_classificacao,
-        max_tokens=6000,
+        max_tokens=8000,
         simulador=lambda: simular(itens, assuntos_recentes),
     )
     analises = resposta.get("itens", []) if isinstance(resposta, dict) else resposta

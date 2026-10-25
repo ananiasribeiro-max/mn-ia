@@ -123,7 +123,14 @@ def chamar(
             )
             texto = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
             _registrar_custo(modulo, modelo, resp.usage.input_tokens, resp.usage.output_tokens)
-            return extrair_json(texto) if json_saida else texto
+            if not json_saida:
+                return texto
+            try:
+                return extrair_json(texto)
+            except ErroLLM:
+                log.warning("%s: resposta sem JSON (stop=%s, %d tokens): %r", modulo,
+                            getattr(resp, "stop_reason", "?"), resp.usage.output_tokens, texto[:200])
+                raise
         except Exception as e:  # rede, limite, JSON inválido
             ultimo_erro = e
             espera = 2 ** i * 3

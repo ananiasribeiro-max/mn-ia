@@ -73,3 +73,23 @@ def test_normalizar_analise_corrige_valores_invalidos():
 def test_extrair_json_tolera_texto_em_volta():
     assert extrair_json('```json\n{"a": 1}\n```') == {"a": 1}
     assert extrair_json('Segue: {"itens": [1, 2]} fim') == {"itens": [1, 2]}
+
+
+def test_lote_com_falha_nao_derruba_a_rodada(monkeypatch):
+    from mnia.llm import ErroLLM
+    from mnia.radar import classificador
+
+    original = classificador.classificar
+
+    def classificar_falho(itens, assuntos, modulo="radar"):
+        if any("QUEBRA" in i["titulo"] for i in itens):
+            raise ErroLLM("resposta sem JSON")
+        return original(itens, assuntos, modulo=modulo)
+
+    monkeypatch.setattr(pipeline, "classificar", classificar_falho)
+    lote = [_item("a", "concorrente", f"Prefeitura de Teresina anuncia obra numero {n} no bairro Centro")
+            for n in range(5)] + [_item("b", "concorrente", "Manchete QUEBRA que a IA nao consegue analisar hoje")]
+    pipeline.gravar_itens(lote, "radar")
+    assert pipeline.analisar_pendentes("radar") == 5
+    with sessao() as s:
+        assert s.scalars(select(Item).where(Item.analisado.is_(False))).one().titulo.startswith("Manchete QUEBRA")

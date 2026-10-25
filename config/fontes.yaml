@@ -75,8 +75,8 @@ fontes:
   - id: governo_pi
     nome: Governo do Piauí
     tipo: oficial
-    formato: html
-    url: https://www.pi.gov.br/noticias
+    formato: rss
+    url: https://www.pi.gov.br/feed/
     peso: 3
 
   - id: pmt
