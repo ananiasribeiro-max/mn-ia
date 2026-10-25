@@ -9,6 +9,9 @@ módulos da Fase 1**:
 | **Radar em tempo real** | Coleta portais, órgãos oficiais, concorrentes e redes a cada 5 min; classifica relevância, prioridade, risco, editoria e plataforma; agrupa itens do mesmo fato; compara com a concorrência; alerta urgentes na hora e manda resumo de hora em hora | Grupo **Radar MN** |
 | **Clipping matinal** | Às 5h30, principais do dia, destaques por editoria, o que a concorrência deu e o MN não, sugestões de pauta com ângulo e quem ouvir | Grupo **Clipping MN** |
 | **Triagem de entrada** | Lê o e-mail de pauta (sem apagar nada), descarta publicidade e lixo, encaminha o que importa com ação sugerida | Grupo **Triagem MN** |
+| **Laudas de TV** | De hora em hora, rascunho de lauda no padrão de telejornal para as pautas fortes do radar (sonoras sempre "a gravar", nunca inventadas) | Grupo **Produção MN** (ou Radar) |
+| **VT → matéria + títulos** | Vídeos novos do canal Meio Norte+ no YouTube viram matéria para o portal com 5 opções de título, linha fina e post para redes | Grupo **Digital MN** (ou Radar) |
+| **Cortes verticais** | Até 3 cortes 9:16 por vídeo, com título na tela e legenda, prontos para Reels/Shorts/TikTok | Grupo **Digital MN** (ou Radar) |
 | **Saúde técnica** | Alerta de erro na hora + relatório diário de execuções e custo de IA | Grupo **Técnico MN** |
 
 Documentação:

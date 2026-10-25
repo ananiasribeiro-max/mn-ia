@@ -81,7 +81,9 @@ def cmd_testar_fontes() -> int:
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="mnia", description="MN-IA — IA como infraestrutura do Meio Norte")
     p.add_argument("comando", choices=["init-db", "status", "testar-fontes", "radar", "resumo",
-                                       "clipping", "triagem", "saude", "rodar", "demo"])
+                                       "clipping", "triagem", "saude", "rodar", "demo",
+                                       "laudas", "youtube", "video"])
+    p.add_argument("alvo", nargs="?", help="para 'video': endereço de um vídeo do YouTube")
     a = p.parse_args(argv)
     _log()
 
@@ -115,6 +117,35 @@ def main(argv: list[str] | None = None) -> None:
     elif a.comando == "rodar":
         from .agendador import iniciar
         iniciar()
+    elif a.comando == "laudas":
+        from .lauda.gerar import rodar_laudas
+        print(f"{rodar_laudas()} laudas enviadas.")
+    elif a.comando == "youtube":
+        from .youtube.pipeline import rodar_youtube
+        e = rodar_youtube()
+        print(f"YouTube: {e.itens_novos} novos, {e.itens_analisados} processados, erros: {e.erros}")
+    elif a.comando == "video":
+        # processa um vídeo específico agora (teste ou pedido avulso)
+        from .db import Item, gerar_hash, sessao
+        from .youtube.pipeline import processar_video
+        import re as _re
+        m = _re.search(r"(?:v=|youtu\.be/|shorts/|live/)([\w-]{11})", a.alvo or "")
+        if not m:
+            sys.exit("Informe o endereço do vídeo: python -m mnia video https://www.youtube.com/watch?v=...")
+        vid = m.group(1)
+        url = f"https://www.youtube.com/watch?v={vid}"
+        with sessao() as s:
+            h = gerar_hash("youtube", vid, url)
+            from sqlalchemy import select as _sel
+            item = s.scalar(_sel(Item).where(Item.hash == h))
+            if item is None:
+                item = Item(hash=h, origem="youtube", fonte_id="youtube", fonte_nome="Meio Norte+ (YouTube)",
+                            fonte_tipo="proprio", url=url, titulo=f"Vídeo {vid}",
+                            analise_extra={"video_id": vid, "tentativas": 0})
+                s.add(item)
+                s.flush()
+            item_id = item.id
+        print(processar_video(item_id))
     elif a.comando == "demo":
         from .demo import rodar_demo
         rodar_demo()

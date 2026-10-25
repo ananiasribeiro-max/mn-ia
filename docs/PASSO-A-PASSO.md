@@ -46,7 +46,7 @@ Telegram entregando mensagem de teste.
 | 2.2 | **Clipping matinal** — às 5h30, consolida o que entrou na madrugada e gera o clipping com sugestão de pauta | ✅ | Grupo Clipping MN |
 | 2.3 | **Triagem de entrada** — lê o e-mail de pauta, dá nota de relevância, descarta lixo, encaminha o que importa | ✅ | Grupo Triagem MN |
 | 2.4 | **Comparação com concorrência** — marca no radar o que concorrentes deram e o MN não | ✅ (via `tipo: concorrente` nas fontes) | Alertas do radar |
-| 2.5 | **Lauda e espelho** — portar o skill lauda-tv do Editor MN para módulo do sistema | 🔨 | Rascunho no Telegram |
+| 2.5 | **Lauda de TV** — de hora em hora, rascunho de lauda (retranca, cabeça, OFF, sonoras a gravar, passagem, nota pé, GC, tempo) para as pautas fortes do radar | ✅ | Grupo Produção MN (ou Radar) |
 | 2.6 | **Rotina por programa** — portar o skill central-rotina e generalizar para todos os programas | 🔨 | Pauta, perguntas, resumo pós-programa |
 | 2.7 | **Dossiê de entrevistado** — busca no banco + web, monta ficha | 🔨 | PDF/mensagem |
 
@@ -60,11 +60,11 @@ expandir.
 
 | # | Módulo | Status | Observação |
 |---|---|---|---|
-| 3.1 | **VT → matéria**: transcrição (Whisper ou serviço) + resumo → rascunho para o portal | 🔨 | Precisa acesso aos arquivos de VT exibidos |
-| 3.2 | **Assistente de títulos**: 5 opções de título + linha fina por matéria | 🔨 | Simples; pode sair junto com 3.1 |
+| 3.1 | **VT → matéria**: vídeos novos do canal Meio Norte+ no YouTube → legenda → matéria para o portal | ✅ | Grupo Digital MN (ou Radar) |
+| 3.2 | **Assistente de títulos**: 5 opções de título + linha fina por matéria | ✅ | Junto com 3.1 |
 | 3.3 | **Padrão da casa automático** para releases e material de parceiros | 🔨 | Usa a triagem como entrada |
 | 3.4 | **Integração com o CMS do Meio News** (salvar como rascunho, nunca publicar) | 🔨 | Depende de qual CMS (WordPress tem API pronta) |
-| 3.5 | **Fábrica de derivados** em texto: post, carrossel, legenda, newsletter | 🔨 | |
+| 3.5 | **Fábrica de derivados**: post para redes ✅ · cortes verticais 9:16 legendados ✅ · carrossel e newsletter 🔨 | |
 | 3.6 | **Otimização de YouTube**: título, descrição, tags, capítulos | 🔨 | Integra com a API do YouTube |
 | 3.7 | **Contexto e relacionadas** no portal | ⏳ | Usa o banco de itens como memória |
 
@@ -98,9 +98,9 @@ expandir.
 
 - **Monitor do poder público**: transcrição das sessões da Câmara de Teresina,
   ALEPI e TCE (a partir das transmissões no YouTube), alertas por palavra-chave.
-- **Corte ao vivo do telejornal**: servidor de captura do sinal + detecção de
-  matérias + reenquadramento vertical + legenda. Avaliar plataforma pronta
-  vs. construção própria.
+- **Corte ao vivo do telejornal**: a versão a partir do YouTube já funciona
+  (cortes depois que o vídeo é publicado). Próximo: captura direta do sinal
+  durante a transmissão, para cortar enquanto está no ar.
 - **Matéria → vídeo curto** (modelo Videofy, código aberto da Schibsted).
 - **Boletins das rádios do interior** (texto revisado, locução humana).
 - **Painel da diretoria**.
@@ -142,3 +142,19 @@ Para cada módulo 🔨, abra uma conversa com:
 3. onde a saída deve chegar.
 
 Eu devolvo o módulo pronto no mesmo padrão deste pacote, com testes.
+
+---
+
+## Vídeo e YouTube — notas de operação
+
+- O canal monitorado é definido em `MNIA_YOUTUBE_CANAL`. Na primeira rodada, só o
+  vídeo mais recente é processado; os anteriores formam a linha de base.
+- Legenda automática do YouTube pode levar algumas horas para sair. O sistema
+  tenta de novo a cada rodada (até 8 vezes).
+- Transmissões ao vivo são processadas quando terminam.
+- Para testar um vídeo específico: `python -m mnia video https://www.youtube.com/watch?v=...`
+- Se o YouTube pedir verificação ("confirme que não é um robô") para o servidor,
+  o grupo Técnico recebe o aviso. Solução: exportar os cookies de uma conta do
+  YouTube logada (extensão "Get cookies.txt") e salvar em `dados/cookies.txt`
+  na máquina. Use uma conta dedicada, não a pessoal.
+- Cortes ficam em `dados/cortes/` por 7 dias e depois são apagados.

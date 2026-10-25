@@ -5,6 +5,8 @@
   clipping  -> todo dia em MNIA_CLIPPING_HORARIO
   triagem   -> a cada MNIA_TRIAGEM_INTERVALO_MIN minutos
   saude     -> todo dia 7h: relatório técnico (execuções, falhas, custo)
+  laudas    -> de hora em hora (minuto 10), das 6h às 22h, para as pautas fortes do radar
+  youtube   -> a cada MNIA_YOUTUBE_INTERVALO_MIN: vídeos novos → matéria, títulos, post, cortes
 """
 from __future__ import annotations
 
@@ -19,7 +21,9 @@ from .config import config
 from .db import Custo, Execucao, agora, init_db, sessao
 from .radar.pipeline import enviar_resumo, rodar_radar
 from .telegram import enviar
+from .lauda.gerar import rodar_laudas
 from .triagem.email_pauta import rodar_triagem
+from .youtube.pipeline import rodar_youtube
 
 log = logging.getLogger("mnia.agendador")
 
@@ -65,6 +69,10 @@ def iniciar() -> None:
                    max_instances=1, coalesce=True)
     ag.add_job(_seguro("clipping", rodar_clipping), "cron", hour=hh, minute=mm, max_instances=1)
     ag.add_job(_seguro("triagem", rodar_triagem), "interval", minutes=cfg.triagem_intervalo_min,
+               max_instances=1, coalesce=True)
+    ag.add_job(_seguro("laudas", rodar_laudas), "cron", hour="6-22", minute=10,
+               max_instances=1, coalesce=True)
+    ag.add_job(_seguro("youtube", rodar_youtube), "interval", minutes=cfg.youtube_intervalo_min,
                max_instances=1, coalesce=True)
     ag.add_job(_seguro("saude", lambda: enviar(cfg.chat_tecnico, relatorio_saude(), tipo="tecnico")),
                "cron", hour=7, minute=0)

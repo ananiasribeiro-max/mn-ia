@@ -56,6 +56,24 @@ class Config:
     chat_clipping: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_CLIPPING", ""))
     chat_triagem: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_TRIAGEM", ""))
     chat_tecnico: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_TECNICO", ""))
+    # Produção (laudas) e Digital (matérias, títulos, cortes). Sem grupo próprio,
+    # usam o grupo do radar, para nada se perder.
+    chat_producao: str = field(default_factory=lambda: os.getenv(
+        "TELEGRAM_CHAT_PRODUCAO", os.getenv("TELEGRAM_CHAT_RADAR", "")))
+    chat_digital: str = field(default_factory=lambda: os.getenv(
+        "TELEGRAM_CHAT_DIGITAL", os.getenv("TELEGRAM_CHAT_RADAR", "")))
+
+    # YouTube / vídeo
+    youtube_canal: str = field(default_factory=lambda: os.getenv(
+        "MNIA_YOUTUBE_CANAL", "https://www.youtube.com/@meionortemais"))
+    youtube_intervalo_min: int = field(default_factory=lambda: int(os.getenv("MNIA_YOUTUBE_INTERVALO_MIN", "15")))
+    youtube_max_videos: int = field(default_factory=lambda: int(os.getenv("MNIA_YOUTUBE_MAX_VIDEOS", "3")))
+    cortes_por_video: int = field(default_factory=lambda: int(os.getenv("MNIA_CORTES_POR_VIDEO", "3")))
+    cortes_ligados: bool = field(default_factory=lambda: _bool("MNIA_CORTES_LIGADOS", True))
+
+    # Laudas
+    laudas_por_hora: int = field(default_factory=lambda: int(os.getenv("MNIA_LAUDAS_POR_HORA", "3")))
+    lauda_relevancia_minima: int = field(default_factory=lambda: int(os.getenv("MNIA_LAUDA_RELEVANCIA_MINIMA", "8")))
 
     # E-mail de pauta (triagem)
     imap_host: str = field(default_factory=lambda: os.getenv("IMAP_HOST", ""))

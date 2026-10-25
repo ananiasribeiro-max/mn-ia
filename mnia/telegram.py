@@ -80,3 +80,37 @@ def alerta_tecnico(modulo: str, erro: str) -> None:
     cfg = config()
     enviar(cfg.chat_tecnico, f"⚠️ <b>MN-IA — erro em {esc(modulo)}</b>\n<code>{esc(erro[:1500])}</code>",
            tipo="tecnico")
+
+
+LIMITE_VIDEO = 49 * 1024 * 1024  # bots do Telegram enviam até 50 MB
+
+
+def enviar_video(canal: str, caminho: Path, legenda: str, *, item_id: int | None = None) -> bool:
+    """Envia um vídeo (corte) para aprovação. Acima de 50 MB, avisa e não envia."""
+    cfg = config()
+    tamanho = caminho.stat().st_size
+    if not cfg.telegram_token or not canal or cfg.simulado:
+        _simular(canal or "sem-canal", f"[VÍDEO {caminho.name} {tamanho // 1024} KB]\n{legenda}")
+        return True
+    if tamanho > LIMITE_VIDEO:
+        return enviar(canal, legenda + f"\n\n⚠️ Corte com {tamanho // (1024 * 1024)} MB: acima do limite do "
+                      "Telegram. Arquivo guardado no servidor: " + esc(caminho.name), tipo="corte", item_id=item_id)
+    url = f"https://api.telegram.org/bot{cfg.telegram_token}/sendVideo"
+    sucesso = True
+    try:
+        with caminho.open("rb") as f:
+            r = httpx.post(url, data={"chat_id": canal, "caption": legenda[:1024], "parse_mode": "HTML",
+                                      "supports_streaming": "true"},
+                           files={"video": (caminho.name, f, "video/mp4")}, timeout=180)
+        if r.status_code != 200:
+            sucesso = False
+            log.error("Telegram vídeo %s no chat %s: %s", r.status_code, canal, r.text[:300])
+    except httpx.HTTPError as e:
+        sucesso = False
+        log.error("Telegram vídeo falhou no chat %s: %s", canal, type(e).__name__)
+    try:
+        with sessao() as s:
+            s.add(Alerta(item_id=item_id, tipo="corte", canal=canal, texto=legenda[:2000], sucesso=sucesso))
+    except Exception as e:
+        log.warning("Falha ao registrar alerta: %s", e)
+    return sucesso
