@@ -59,7 +59,7 @@ def _tela_dividida(frame) -> bool:
     return direita.mean() < 55 and esquerda.mean() > 90
 
 
-def planejar(video: Path, passo: float = 0.4) -> tuple[int, int, list[Plano]]:
+def planejar(video: Path, passo: float = 0.4, proporcao: float = PROPORCAO) -> tuple[int, int, list[Plano]]:
     import cv2
     cap = cv2.VideoCapture(str(video))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
@@ -67,7 +67,7 @@ def planejar(video: Path, passo: float = 0.4) -> tuple[int, int, list[Plano]]:
     W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     ch = int(H * JANELA_ESQ[3]) // 2 * 2
-    cw = min(W, int(ch * PROPORCAO)) // 2 * 2
+    cw = min(W, int(ch * proporcao)) // 2 * 2
     detector = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
     amostras = []   # (t, frame)

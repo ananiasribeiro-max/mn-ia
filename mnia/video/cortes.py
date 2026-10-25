@@ -151,6 +151,8 @@ def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho
     bruto = baixar_trecho(video_url, ini, fim, pasta / f"bruto_{n}.mp4", ao_vivo=bool(corte.get("ao_vivo")))
     try:
         saida = pasta / f"{n:02d}-{modelo}-{nome_seguro(corte.get('titulo', 'corte'))}.mp4"
+        if modelo == "central":
+            return _central(bruto, saida, corte, trechos, ini, fim, pedido, quadro, video_id)
         crop = None
         if pedido == "auto":
             from . import enquadrar
@@ -166,6 +168,31 @@ def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho
                                   fotos=corte.get("fotos"), credito=corte.get("credito", ""))
     finally:
         bruto.unlink(missing_ok=True)
+
+
+def _central(bruto: Path, saida: Path, corte: dict, trechos, ini: float, fim: float, pedido: str,
+             quadro, video_id: str) -> Path:
+    """Modelo do programa Central Meio Norte: fala em cima, foto(s) do assunto embaixo."""
+    from . import central
+    crop = None
+    if quadro:
+        x, y, w, h = quadro
+        crop = f"crop=trunc(iw*{w}/2)*2:trunc(ih*{h}/2)*2:trunc(iw*{x}):trunc(ih*{y})"
+    elif pedido == "auto":
+        from . import enquadrar
+        try:
+            cw, ch, planos = enquadrar.planejar(bruto, proporcao=central.PROPORCAO_VIDEO)
+            crop = enquadrar.filtro_crop(cw, ch, planos)
+            log.info("Enquadramento central %s: %s", video_id, [(round(p.t0, 1), p.x, p.y, p.tipo) for p in planos])
+        except Exception as e:
+            log.warning("Enquadramento automático falhou: %s", e)
+    citacao = corte.get("citacao") or corte.get("titulo", "")
+    fotos = [p for p, _ in (corte.get("fotos") or [])]
+    if not fotos:
+        fala = " ".join(t.texto for t in trechos if ini <= t.inicio <= fim)
+        fotos = central.fotos_da_biblioteca(f"{citacao} {corte.get('titulo', '')} {fala}")
+        corte["fotos_usadas"] = [f.name for f in fotos]
+    return central.renderizar(bruto, saida, citacao, fotos, crop)
 
 
 def comparar_modelos(video_id: str, video_url: str, corte: dict, trechos: list[Trecho]) -> list[tuple[str, Path]]:

@@ -3,6 +3,8 @@
   /corte <link> 14:01                          corte a partir de um minuto do vídeo
   /corte <link> "começo da fala"               corte a partir de uma frase (serve para AO VIVO)
   /corte <link> "começo da fala" 02:16         idem, com a hora do relógio da tela (busca mais rápida)
+  /central <link> ...                          mesmo pedido no modelo do programa Central Meio Norte
+                                               (mande junto 1 ou 2 fotos do assunto, como álbum com legenda)
   /ajuda                                       lista os comandos
 
 Só os grupos/canais configurados no .env podem dar comandos. Os pedidos entram numa
@@ -33,6 +35,10 @@ AJUDA = (
     "<b>/corte</b> <i>link</i> \"<i>começo da fala</i>\" <i>02:16</i>\n"
     "  corte a partir de uma frase; serve para transmissão AO VIVO.\n"
     "  A hora (relógio da tela) é opcional, mas deixa a busca bem mais rápida.\n\n"
+    "<b>/central</b> <i>link</i> <i>14:01</i>  (ou com \"frase\" e hora)\n"
+    "  mesmo corte no modelo do <b>Central Meio Norte</b>: fala em cima, foto do assunto embaixo,\n"
+    "  frase de destaque no meio. Mande 1 ou 2 fotos junto (álbum, com o comando na legenda).\n"
+    "  Sem foto, uso as da biblioteca do servidor (ex.: lula.jpg, flavio.jpg) pelos nomes citados.\n\n"
     "O corte chega no canal de cortes em 1 a 3 minutos."
 )
 
@@ -46,8 +52,10 @@ def chats_autorizados() -> set[str]:
 def interpretar(texto: str) -> dict | None:
     """'/corte link 14:01' ou '/corte link "frase" 02:16' -> pedido; None se não for comando de corte."""
     texto = texto.strip().replace("“", '"').replace("”", '"')
-    if not re.match(r"^/corte(@\w+)?\b", texto):
+    m = re.match(r"^/(corte|central)(@\w+)?\b", texto)
+    if not m:
         return None
+    modelo = "central" if m.group(1) == "central" else ""
     try:
         partes = shlex.split(texto)
     except ValueError:
@@ -55,10 +63,13 @@ def interpretar(texto: str) -> dict | None:
     partes = partes[1:]
     url = next((p for p in partes if "youtu" in p), "")
     resto = [p for p in partes if p != url]
+    if any(p.lower() in ("central", "#central") for p in resto):
+        modelo = "central"
+        resto = [p for p in resto if p.lower() not in ("central", "#central")]
     horas = [p for p in resto if re.fullmatch(r"\d{1,2}:\d{2}(:\d{2})?", p)]
     palavras = [p for p in resto if p not in horas]
     frase = " ".join(palavras).strip().strip('"').strip()
-    pedido = {"url": url, "frase": frase, "inicio": "", "hora": ""}
+    pedido = {"url": url, "frase": frase, "inicio": "", "hora": "", "modelo": modelo, "fotos": []}
     if frase:
         pedido["hora"] = horas[0] if horas else ""
     elif horas:
@@ -72,14 +83,20 @@ def _executar(chat: str, p: dict) -> None:
     t0 = time.time()
     try:
         item_id = item_para_url(p["url"])
+        fotos = [(f, "") for f in p.get("fotos") or []]
         if p["frase"]:
-            r = corte_por_frase(item_id, p["frase"], hora=p["hora"])
+            r = corte_por_frase(item_id, p["frase"], hora=p["hora"], fotos=fotos, modelo=p.get("modelo", ""))
         else:
-            r = corte_indicado(item_id, mmss(p["inicio"]))
+            r = corte_indicado(item_id, mmss(p["inicio"]), fotos=fotos, modelo=p.get("modelo", ""))
         seg = int(time.time() - t0)
         if r.get("cortes"):
+            extra = ""
+            if p.get("modelo") == "central" and not p.get("fotos"):
+                usadas = r.get("fotos_usadas") or []
+                extra = ("\nFotos da biblioteca: " + esc(", ".join(usadas))) if usadas else \
+                    "\n(Sem foto do assunto: usei o vídeo desfocado embaixo. Mande fotos junto no próximo.)"
             enviar(chat, f"✅ Corte pronto em {seg}s ({esc(r['inicio'])}–{esc(r['fim'])}): "
-                         f"<b>{esc(r.get('titulo') or '')}</b>\nEnviado ao canal de cortes.", tipo="bot")
+                         f"<b>{esc(r.get('titulo') or '')}</b>{extra}\nEnviado ao canal de cortes.", tipo="bot")
         else:
             enviar(chat, f"⚠️ Não consegui montar o corte: {esc('; '.join(r.get('falhas') or []) or 'sem detalhes')}",
                    tipo="bot")
@@ -97,7 +114,20 @@ def _trabalhador() -> None:
             _fila.task_done()
 
 
-def _responder(chat: str, texto: str) -> None:
+def _baixar_foto(file_id: str) -> str:
+    """Baixa a foto enviada no Telegram para dados/fotos e devolve o caminho."""
+    cfg = config()
+    api = f"https://api.telegram.org/bot{cfg.telegram_token}"
+    info = httpx.get(f"{api}/getFile", params={"file_id": file_id}, timeout=30).json()["result"]
+    destino = RAIZ / "dados" / "fotos" / f"tg_{info['file_unique_id']}.jpg"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    conteudo = httpx.get(f"https://api.telegram.org/file/bot{cfg.telegram_token}/{info['file_path']}",
+                         timeout=60).content
+    destino.write_bytes(conteudo)
+    return str(destino)
+
+
+def _responder(chat: str, texto: str, fotos: list[str] | None = None) -> None:
     if texto.strip().startswith(("/ajuda", "/start", "/help")):
         enviar(chat, AJUDA, tipo="bot")
         return
@@ -108,11 +138,18 @@ def _responder(chat: str, texto: str) -> None:
         enviar(chat, "Formato: <code>/corte link 14:01</code> ou "
                      "<code>/corte link \"começo da fala\" 02:16</code>", tipo="bot")
         return
+    if fotos:
+        try:
+            p["fotos"] = [_baixar_foto(f) for f in fotos[:2]]
+        except Exception as e:
+            log.warning("Falha ao baixar foto do Telegram: %s", type(e).__name__)
     na_frente = _fila.qsize()
     _fila.put((chat, p))
+    modelo_txt = " no modelo <b>Central Meio Norte</b>" if p.get("modelo") == "central" else ""
+    fotos_txt = f" com {len(p['fotos'])} foto(s)" if p.get("fotos") else ""
     onde = f"frase “{esc(p['frase'][:60])}”" + (f" perto de {esc(p['hora'])}" if p["hora"] else "") \
         if p["frase"] else f"minuto {esc(p['inicio'])}"
-    enviar(chat, f"⏳ Pedido recebido: corte a partir da {onde}."
+    enviar(chat, f"⏳ Pedido recebido: corte{modelo_txt}{fotos_txt} a partir da {onde}."
                  + (f" {na_frente} pedido(s) na frente." if na_frente else ""), tipo="bot")
 
 
@@ -129,9 +166,10 @@ def escutar() -> None:
     except ValueError:
         offset = 0
     log.info("Bot de comandos ativo (%d chats autorizados)", len(autorizados))
+    albuns: dict[str, dict] = {}   # media_group_id -> {"chat","fotos","texto","t"}
     while True:
         try:
-            r = httpx.get(url, params={"timeout": 50, "offset": offset,
+            r = httpx.get(url, params={"timeout": 5 if albuns else 50, "offset": offset,
                                        "allowed_updates": '["message","channel_post"]'}, timeout=60)
             if r.status_code != 200:
                 log.warning("getUpdates %s", r.status_code)
@@ -141,13 +179,27 @@ def escutar() -> None:
                 offset = up["update_id"] + 1
                 msg = up.get("message") or up.get("channel_post") or {}
                 chat = str((msg.get("chat") or {}).get("id", ""))
-                texto = msg.get("text") or ""
-                if not texto.startswith("/"):
-                    continue
                 if chat not in autorizados:
-                    log.warning("Comando ignorado de chat não autorizado %s", chat)
+                    if (msg.get("text") or msg.get("caption") or "").startswith("/"):
+                        log.warning("Comando ignorado de chat não autorizado %s", chat)
                     continue
-                _responder(chat, texto)
+                texto = msg.get("text") or msg.get("caption") or ""
+                foto = (msg.get("photo") or [{}])[-1].get("file_id")
+                grupo = msg.get("media_group_id")
+                if grupo:  # álbum: junta as fotos; o comando vem na legenda de uma delas
+                    a = albuns.setdefault(grupo, {"chat": chat, "fotos": [], "texto": "", "t": time.time()})
+                    if foto:
+                        a["fotos"].append(foto)
+                    if texto:
+                        a["texto"] = texto
+                    a["t"] = time.time()
+                    continue
+                if texto.startswith("/"):
+                    _responder(chat, texto, [foto] if foto else None)
+            for g in [g for g, a in albuns.items() if time.time() - a["t"] > 2.5]:
+                a = albuns.pop(g)
+                if a["texto"].startswith("/"):
+                    _responder(a["chat"], a["texto"], a["fotos"])
             OFFSET.parent.mkdir(parents=True, exist_ok=True)
             OFFSET.write_text(str(offset))
         except httpx.HTTPError as e:

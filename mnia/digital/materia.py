@@ -129,7 +129,9 @@ completa, entre {minimo} e {maximo} segundos depois do início. Não corte no me
 
 Devolva JSON: {{"fim":"mm:ss","titulo":"manchete de tela no estilo portal, factual, 50 a 90
 caracteres, sem aspas inventadas","destaque":"trecho LITERAL do título (3 a 6 palavras, o
-núcleo da notícia)","legenda":"legenda do post até 200 caracteres","motivo":"o que a fala traz"}}.
+núcleo da notícia)","citacao":"a ideia central da fala em discurso direto, como frase de destaque
+entre aspas: fiel ao que foi dito (pode condensar, sem mudar o sentido), 60 a 110 caracteres, sem as
+aspas","legenda":"legenda do post até 200 caracteres","motivo":"o que a fala traz"}}.
 Use só o que está na transcrição; não invente fatos, números nem nomes."""
 
 

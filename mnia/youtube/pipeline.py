@@ -70,7 +70,7 @@ def _enviar_cortes(item_id: int, vid: str, url: str, titulo: str, cortes: list, 
     feitos, falhas = 0, []
     for n, c in enumerate(cortes, 1):
         try:
-            arq = vc.gerar_corte(vid, url, c, trechos, n)
+            arq = vc.gerar_corte(vid, url, c, trechos, n, modelo=c.get("modelo"))
             leg = (f"🎬 <b>CORTE {n}</b> — {esc(c.get('titulo', ''))}\n"
                    f"{esc(c.get('inicio', ''))}–{esc(c.get('fim', ''))} de <a href=\"{esc(url)}\">{esc(titulo)}</a>\n\n"
                    f"<b>Legenda sugerida:</b> {esc(c.get('legenda', ''))}\n"
@@ -101,7 +101,7 @@ def refazer_cortes(item_id: int) -> dict:
 
 
 def corte_indicado(item_id: int, inicio: float, quadro: str = "", fotos: list | None = None,
-                   credito: str = "") -> dict:
+                   credito: str = "", modelo: str = "") -> dict:
     """Um corte a partir do ponto que a redação indicou (ex.: 14:01), com enquadramento opcional."""
     with sessao() as s:
         it = s.get(Item, item_id)
@@ -114,8 +114,12 @@ def corte_indicado(item_id: int, inicio: float, quadro: str = "", fotos: list | 
         c["quadro"] = quadro
     if fotos:
         c["fotos"], c["credito"] = fotos, credito
+    if modelo:
+        c["modelo"] = modelo
     feitos, falhas = _enviar_cortes(item_id, vid, url, titulo, [c], trechos)
-    return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
+    return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"],
+            "titulo": c.get("citacao") if c.get("modelo") == "central" else c.get("titulo"),
+            "fotos_usadas": c.get("fotos_usadas")}
 
 
 def item_para_url(url: str) -> int:
@@ -139,7 +143,7 @@ def item_para_url(url: str) -> int:
 
 
 def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | None = None,
-                    credito: str = "", hora: str = "") -> dict:
+                    credito: str = "", hora: str = "", modelo: str = "") -> dict:
     """Corte a partir de uma frase dita no vídeo (serve para transmissões ao vivo, sem legenda)."""
     import tempfile
     from pathlib import Path
@@ -170,8 +174,12 @@ def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | No
         c["quadro"] = quadro
     if fotos:
         c["fotos"], c["credito"] = fotos, credito
+    if modelo:
+        c["modelo"] = modelo
     feitos, falhas = _enviar_cortes(item_id, vid, url, titulo, [c], trechos)
-    return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
+    return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"],
+            "titulo": c.get("citacao") if c.get("modelo") == "central" else c.get("titulo"),
+            "fotos_usadas": c.get("fotos_usadas")}
 
 
 def enviar_modelos(item_id: int) -> dict:

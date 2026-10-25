@@ -125,7 +125,7 @@ def test_processar_video_completo(monkeypatch, tmp_path):
     trechos = [legendas.Trecho(i * 5, i * 5 + 5, f"frase número {i} do telejornal") for i in range(24)]
     monkeypatch.setattr(yp.legendas, "obter", lambda url: (trechos, {"duration": 120, "is_live": False}))
 
-    def corte_local(vid, url, c, tr, n):
+    def corte_local(vid, url, c, tr, n, **kw):
         bruto = _video_sintetico(tmp_path / f"b{n}.mp4", 3)
         return vc.montar_vertical(bruto, tmp_path / f"c{n}.mp4", c["titulo"], vc.srt_do_trecho(tr, 0, 3))
     monkeypatch.setattr(yp.vc, "gerar_corte", corte_local)
@@ -177,3 +177,17 @@ def test_comando_corte_do_telegram():
     assert p["frase"] == "A onda vermelha do PT" and p["hora"] == "02:16" and "youtu" in p["url"]
     p = interpretar("/corte@MNIAbot https://youtu.be/PT1elxQmzqg a onda vermelha do partido")
     assert p["frase"] == "a onda vermelha do partido" and p["hora"] == ""
+
+
+def test_comando_central_e_fotos_da_biblioteca(tmp_path, monkeypatch):
+    from mnia.bot import interpretar
+    from mnia.video import central
+    p = interpretar("/central https://youtu.be/kpp-DKFrq0U 14:01")
+    assert p["modelo"] == "central" and p["inicio"] == "14:01"
+    p = interpretar('/corte https://youtu.be/kpp-DKFrq0U "voto de protesto" 02:16 central')
+    assert p["modelo"] == "central" and p["frase"] == "voto de protesto"
+    for nome in ("lula.jpg", "flavio.jpg", "tarcisio.jpg"):
+        (tmp_path / nome).write_bytes(b"x")
+    monkeypatch.setattr(central, "FOTOS", tmp_path)
+    achadas = central.fotos_da_biblioteca("Diferencial de Flávio Bolsonaro vai ser voto de protesto contra Lula")
+    assert [f.name for f in achadas] == ["flavio.jpg", "lula.jpg"]
