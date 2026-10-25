@@ -118,6 +118,36 @@ def corte_indicado(item_id: int, inicio: float, quadro: str = "", fotos: list | 
     return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
 
 
+def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | None = None,
+                    credito: str = "") -> dict:
+    """Corte a partir de uma frase dita no vídeo (serve para transmissões ao vivo, sem legenda)."""
+    import tempfile
+    from pathlib import Path
+    from . import aovivo
+    with sessao() as s:
+        it = s.get(Item, item_id)
+        vid, url, titulo = it.analise_extra["video_id"], it.url, it.titulo
+    inicio, info = aovivo.achar_frase(url, frase)
+    ao_vivo = bool(info.get("is_live") or info.get("live_status") == "is_live")
+    if info.get("title") and titulo.startswith("Vídeo "):
+        titulo = info["title"]
+        with sessao() as s:
+            s.get(Item, item_id).titulo = titulo
+    inicio = max(0.0, inicio - 0.3)
+    # legenda precisa do trecho (modelo maior) para o corte e para o Claude escolher o fim
+    with tempfile.TemporaryDirectory() as tmp:
+        audio = aovivo.baixar(url, inicio, inicio + 100, Path(tmp) / "trecho.m4a", so_audio=True, ao_vivo=ao_vivo)
+        trechos, _ = aovivo.transcrever(audio, inicio, "small")
+    c = dig.corte_indicado(titulo, trechos, inicio)
+    c["ao_vivo"] = ao_vivo
+    if quadro:
+        c["quadro"] = quadro
+    if fotos:
+        c["fotos"], c["credito"] = fotos, credito
+    feitos, falhas = _enviar_cortes(item_id, vid, url, titulo, [c], trechos)
+    return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
+
+
 def enviar_modelos(item_id: int) -> dict:
     """Envia o 1º corte de um vídeo nos três modelos visuais, para comparação."""
     from ..video.layouts import MODELOS

@@ -10,6 +10,7 @@ tzdata
 Pillow>=10.0
 opencv-python-headless>=4.8,<5
 numpy
+faster-whisper>=1.0
 yt-dlp[default]>=2025.1.1
 # runtime JavaScript que o yt-dlp usa para ler os formatos do YouTube
 deno>=2.0

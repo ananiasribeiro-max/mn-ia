@@ -52,7 +52,7 @@ def nome_seguro(texto: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", texto.lower())[:40].strip("-") or "corte"
 
 
-def baixar_trecho(video_url: str, ini: float, fim: float, destino: Path) -> Path:
+def baixar_trecho(video_url: str, ini: float, fim: float, destino: Path, ao_vivo: bool = False) -> Path:
     import yt_dlp
     from yt_dlp.utils import download_range_func
 
@@ -67,6 +67,9 @@ def baixar_trecho(video_url: str, ini: float, fim: float, destino: Path) -> Path
         "outtmpl": str(base) + ".%(ext)s",
         "noplaylist": True,
     }
+    if ao_vivo:  # transmissão em andamento: baixa pelo relógio desde o início da live
+        opcoes["live_from_start"] = True
+        opcoes["format"] = "bv*[height<=1080]+ba/b[height<=1080]/b"
     with yt_dlp.YoutubeDL(opcoes) as ydl:
         ydl.download([video_url])
     arquivos = sorted(base.parent.glob(base.name + ".*"))
@@ -145,7 +148,7 @@ def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho
     quadro = None if pedido == "auto" else layouts.quadro_de(pedido)
     ini, fim = float(corte["ini_s"]), float(corte["fim_s"])
     pasta = PASTA / video_id
-    bruto = baixar_trecho(video_url, ini, fim, pasta / f"bruto_{n}.mp4")
+    bruto = baixar_trecho(video_url, ini, fim, pasta / f"bruto_{n}.mp4", ao_vivo=bool(corte.get("ao_vivo")))
     try:
         saida = pasta / f"{n:02d}-{modelo}-{nome_seguro(corte.get('titulo', 'corte'))}.mp4"
         crop = None

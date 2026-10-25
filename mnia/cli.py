@@ -88,6 +88,7 @@ def main(argv: list[str] | None = None) -> None:
                                        "laudas", "youtube", "video", "recortar", "modelos", "corte"])
     p.add_argument("alvo", nargs="?", help="para 'video'/'recortar'/'corte': endereço de um vídeo do YouTube")
     p.add_argument("--inicio", help="para 'corte': ponto de início no vídeo (mm:ss ou hh:mm:ss)")
+    p.add_argument("--frase", help="para 'corte': começo da fala onde o corte inicia (serve para vídeo ao vivo)")
     p.add_argument("--quadro", default="", help="para 'corte': enquadramento (ex.: comentarista ou x,y,l,a)")
     p.add_argument("--foto", action="append", default=[],
                    help="para 'corte': foto no pé, como arquivo:Nome (até 2; arquivos em dados/fotos)")
@@ -156,8 +157,8 @@ def main(argv: list[str] | None = None) -> None:
         if a.comando == "corte":
             from .digital.materia import mmss
             from .youtube.pipeline import corte_indicado
-            if not a.inicio:
-                sys.exit("Informe --inicio mm:ss")
+            if not a.inicio and not a.frase:
+                sys.exit("Informe --inicio mm:ss ou --frase \"começo da fala\"")
             fotos = []
             for fv in a.foto:
                 arq, _, nome = fv.partition(":")
@@ -165,7 +166,11 @@ def main(argv: list[str] | None = None) -> None:
                 if not caminho.exists():
                     sys.exit(f"Foto não encontrada: {caminho}")
                 fotos.append((str(caminho), nome))
-            print(corte_indicado(item_id, mmss(a.inicio), a.quadro, fotos, a.credito))
+            if a.frase:
+                from .youtube.pipeline import corte_por_frase
+                print(corte_por_frase(item_id, a.frase, a.quadro, fotos, a.credito))
+            else:
+                print(corte_indicado(item_id, mmss(a.inicio), a.quadro, fotos, a.credito))
         else:
             acao = {"recortar": refazer_cortes, "modelos": enviar_modelos}.get(a.comando, processar_video)
             print(acao(item_id))

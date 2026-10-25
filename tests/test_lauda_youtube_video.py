@@ -158,3 +158,11 @@ def test_tres_modelos_de_corte_renderizam(tmp_path):
                                "stream=width,height,sample_aspect_ratio", "-of", "csv=p=0", str(out)],
                               capture_output=True, text=True).stdout.strip()
         assert info == "1080,1920,1:1", (m, info)
+
+
+def test_procurar_frase_tolera_erros_de_transcricao():
+    from mnia.youtube.aovivo import procurar
+    texto = "boa noite a todos a onda vermelho do partido dos trabalhador chegou ao nordeste e"
+    palavras = [(float(i), float(i) + 0.5, w) for i, w in enumerate(texto.split())]
+    assert procurar(palavras, "A onda vermelha do Partido dos Trabalhadores") == 4.0
+    assert procurar(palavras, "frase que nunca foi dita aqui de jeito nenhum") is None
