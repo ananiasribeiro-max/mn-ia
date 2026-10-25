@@ -51,7 +51,7 @@ def gravar_itens(coletados: list[ItemColetado], origem: str) -> int:
                 hash=h, origem=origem, fonte_id=c.fonte_id, fonte_nome=c.fonte_nome,
                 fonte_tipo=c.fonte_tipo, url=c.url, titulo=c.titulo, texto=c.texto,
                 publicado_em=_utc_naive(c.publicado_em),
-                analise_extra={"peso": c.peso},
+                analise_extra={"peso": c.peso, "uf_fonte": getattr(c, "uf", "")},
                 # fonte nova: só registra o que já estava publicado (sem alertar e sem fila de análise)
                 alertado=bool(conhecidas) and c.fonte_id not in conhecidas,
                 analisado=bool(conhecidas) and c.fonte_id not in conhecidas,
@@ -102,7 +102,8 @@ def analisar_pendentes(origem: str = "radar", limite: int | None = None) -> int:
         ).scalars().all()
         dados = [{"id": i.id, "titulo": i.titulo, "texto": (i.texto or "")[:800],
                   "fonte": i.fonte_nome, "tipo_fonte": i.fonte_tipo,
-                  "peso": (i.analise_extra or {}).get("peso", 1)} for i in pendentes]
+                  "peso": (i.analise_extra or {}).get("peso", 1),
+                  "estado_da_fonte": (i.analise_extra or {}).get("uf_fonte", "")} for i in pendentes]
 
     total = 0
     fila = [dados[i:i + LOTE] for i in range(0, len(dados), LOTE)]
@@ -127,8 +128,11 @@ def analisar_pendentes(origem: str = "radar", limite: int | None = None) -> int:
                 a = por_id.get(d["id"])
                 if a is None:
                     continue  # IA não devolveu: tenta na próxima rodada
+                local = a.pop("_local", None)
                 for campo, valor in a.items():
                     setattr(item, campo, valor)
+                if local:
+                    item.analise_extra = {**(item.analise_extra or {}), **local}
                 item.analisado = True
                 total += 1
     # Itens que sobraram além do limite e são antigos (>6h) viram descartados para não acumular

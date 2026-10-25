@@ -25,11 +25,21 @@ Para CADA item devolva:
 - assunto_chave: rótulo curto e estável do FATO (ex.: "greve-professores-teresina-out26").
   Se o fato já aparece na lista ASSUNTOS RECENTES, REUTILIZE exatamente o mesmo rótulo.
   Itens diferentes sobre o mesmo fato devem ter o mesmo assunto_chave.
+- abrangencia: piaui | outro_estado | nacional | internacional
+  (piaui = fato do Piauí; outro_estado = fato local de outro estado, mesmo que a fonte seja
+  nacional; nacional = Brasília/governo federal/Congresso/STF ou fato do país inteiro)
+- local: onde é o fato, curto: "Cidade-UF" ou "UF" (ex.: "São Luís-MA", "CE", "Brasília-DF");
+  vazio se nacional sem lugar definido
+- liga_piaui: true se o fato de outro estado/nacional tem ligação direta com o Piauí
+  (piauienses envolvidos, efeito no Piauí, política nordestina que mexe no estado)
 
 Critérios:
 - Fonte do tipo "oficial" com anúncio concreto pesa mais.
 - Fonte do tipo "proprio" é do próprio grupo: classifique normalmente.
 - Notícia nacional só é relevante se afeta diretamente o Piauí ou é de enorme repercussão.
+- O grupo também acompanha MA, CE, PA, AM, AC, RR, SC, SP e DF (campo estado_da_fonte).
+  Fato local desses estados: avalie a importância para o público daquele estado e para o
+  Nordeste; ganha relevância extra se liga_piaui for true. Não descarte só por não ser do Piauí.
 - Itens com [engajamento: N] alto indicam assunto crescendo nas redes.
 - Na dúvida entre urgente e pauta, escolha pauta. Urgente é raro.
 - Boato, montagem, acusação sem prova ou fonte duvidosa => risco vermelho.
@@ -104,6 +114,10 @@ def simular(itens: list[dict], assuntos_recentes: list[str]) -> dict:
             "resumo": it["titulo"][:200],
             "porque_importa": "[simulado] avaliação heurística, sem IA.",
             "assunto_chave": chave,
+            "abrangencia": {"PI": "piaui", "BR": "nacional", "": "nacional"}.get(it.get("estado_da_fonte", ""),
+                                                                              "outro_estado"),
+            "local": it.get("estado_da_fonte", "") if it.get("estado_da_fonte") not in ("", "BR") else "",
+            "liga_piaui": any(p in t for p in PALAVRAS_PI),
         })
     return {"itens": saida}
 
@@ -142,7 +156,12 @@ def normalizar_analise(a: dict) -> dict:
     edit = a.get("editoria") if a.get("editoria") in editorias_validas() else None
     chave = re.sub(r"[^a-z0-9\-]", "", _sem_acento(str(a.get("assunto_chave") or ""))
                    .replace(" ", "-"))[:200] or None
+    abr = str(a.get("abrangencia") or "").lower()
+    if abr not in {"piaui", "outro_estado", "nacional", "internacional"}:
+        abr = ""
     return {
+        "_local": {"abrangencia": abr, "local": str(a.get("local") or "")[:60],
+                   "liga_piaui": bool(a.get("liga_piaui"))},
         "relevancia": rel, "prioridade": prio, "risco": risco, "editoria": edit,
         "plataformas": plats, "resumo": (a.get("resumo") or "")[:1000],
         "porque_importa": (a.get("porque_importa") or "")[:1000], "assunto_chave": chave,

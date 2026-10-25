@@ -6,6 +6,7 @@
 #    concorrente  -> outros veículos do Piauí (para comparar cobertura)
 #    oficial      -> governo, prefeituras, órgãos, Diário Oficial
 #    nacional     -> portais nacionais
+#    regional     -> portais de outros estados acompanhados pelo grupo
 #    rede         -> perfis de redes sociais (ver nota no final)
 #
 #  formato:
@@ -13,6 +14,8 @@
 #    html -> página inicial; o coletor extrai as manchetes automaticamente
 #
 #  peso: 1 (baixo) a 3 (alto) — influencia a relevância
+#  uf: estado da fonte (PI, MA, CE, PA, AM, AC, RR, SC, SP, DF) ou BR (nacional);
+#      o radar usa para marcar "pauta local" e de qual estado
 #  ativo: false para desligar sem apagar
 #
 #  ATENÇÃO DESENVOLVEDOR: as URLs abaixo são o ponto de partida.
@@ -27,6 +30,7 @@ fontes:
     formato: html
     url: https://www.meionorte.com
     peso: 3
+    uf: PI
 
   # ---------- Concorrentes Piauí ----------
   - id: g1pi
@@ -35,6 +39,7 @@ fontes:
     formato: rss
     url: https://g1.globo.com/rss/g1/pi/
     peso: 3
+    uf: PI
 
   - id: cidadeverde
     nome: Cidade Verde
@@ -42,6 +47,7 @@ fontes:
     formato: html
     url: https://cidadeverde.com
     peso: 3
+    uf: PI
 
   - id: gp1
     nome: GP1
@@ -49,6 +55,7 @@ fontes:
     formato: html
     url: https://www.gp1.com.br
     peso: 2
+    uf: PI
 
   - id: portalodia
     nome: Portal O Dia
@@ -56,6 +63,7 @@ fontes:
     formato: html
     url: https://www.portalodia.com
     peso: 2
+    uf: PI
 
   - id: 180graus
     nome: 180graus
@@ -63,6 +71,7 @@ fontes:
     formato: html
     url: https://180graus.com
     peso: 2
+    uf: PI
 
   - id: pi24h
     nome: Pi24h
@@ -70,6 +79,7 @@ fontes:
     formato: html
     url: https://pi24h.com
     peso: 2
+    uf: PI
 
   # ---------- Oficiais ----------
   - id: governo_pi
@@ -78,6 +88,7 @@ fontes:
     formato: rss
     url: https://www.pi.gov.br/feed/
     peso: 3
+    uf: PI
 
   - id: pmt
     nome: Prefeitura de Teresina
@@ -85,6 +96,7 @@ fontes:
     formato: html
     url: https://pmt.pi.gov.br
     peso: 3
+    uf: PI
 
   - id: alepi
     nome: Assembleia Legislativa do Piauí
@@ -92,6 +104,7 @@ fontes:
     formato: html
     url: https://www.al.pi.leg.br
     peso: 3
+    uf: PI
 
   - id: tce_pi
     nome: TCE-PI
@@ -99,6 +112,7 @@ fontes:
     formato: html
     url: https://www.tce.pi.gov.br
     peso: 2
+    uf: PI
 
   # ---------- Nacionais ----------
   # Peso 1–2: o radar só destaca o nacional que tem peso para o público do MN
@@ -110,6 +124,7 @@ fontes:
     formato: rss
     url: https://g1.globo.com/rss/g1/
     peso: 2
+    uf: BR
 
   - id: g1_politica
     nome: g1 Política
@@ -117,6 +132,7 @@ fontes:
     formato: rss
     url: https://g1.globo.com/rss/g1/politica/
     peso: 2
+    uf: BR
 
   - id: folha
     nome: Folha de S.Paulo
@@ -124,6 +140,7 @@ fontes:
     formato: rss
     url: https://feeds.folha.uol.com.br/emcimadahora/rss091.xml
     peso: 2
+    uf: BR
 
   - id: uol
     nome: UOL Notícias
@@ -131,6 +148,7 @@ fontes:
     formato: rss
     url: https://rss.uol.com.br/feed/noticias.xml
     peso: 2
+    uf: BR
 
   - id: estadao
     nome: Estadão Política
@@ -138,6 +156,7 @@ fontes:
     formato: rss
     url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/politica/
     peso: 2
+    uf: BR
 
   - id: oglobo
     nome: O Globo
@@ -145,6 +164,7 @@ fontes:
     formato: html
     url: https://oglobo.globo.com
     peso: 2
+    uf: BR
 
   - id: cnnbrasil
     nome: CNN Brasil
@@ -152,6 +172,7 @@ fontes:
     formato: rss
     url: https://www.cnnbrasil.com.br/feed/
     peso: 2
+    uf: BR
 
   - id: poder360
     nome: Poder360
@@ -159,6 +180,7 @@ fontes:
     formato: rss
     url: https://www.poder360.com.br/feed/
     peso: 2
+    uf: BR
 
   - id: metropoles
     nome: Metrópoles
@@ -166,6 +188,7 @@ fontes:
     formato: rss
     url: https://www.metropoles.com/feed
     peso: 2
+    uf: BR
 
   - id: r7
     nome: R7
@@ -173,6 +196,7 @@ fontes:
     formato: rss
     url: https://noticias.r7.com/feed.xml
     peso: 1
+    uf: BR
 
   - id: bbcbrasil
     nome: BBC News Brasil
@@ -180,6 +204,7 @@ fontes:
     formato: rss
     url: https://feeds.bbci.co.uk/portuguese/rss.xml
     peso: 1
+    uf: BR
 
   - id: veja
     nome: Veja
@@ -187,6 +212,7 @@ fontes:
     formato: rss
     url: https://veja.abril.com.br/feed/
     peso: 1
+    uf: BR
 
   - id: cartacapital
     nome: CartaCapital
@@ -194,6 +220,7 @@ fontes:
     formato: rss
     url: https://www.cartacapital.com.br/feed/
     peso: 1
+    uf: BR
 
   - id: gazetadopovo
     nome: Gazeta do Povo
@@ -201,6 +228,7 @@ fontes:
     formato: rss
     url: https://www.gazetadopovo.com.br/feed/rss/republica.xml
     peso: 1
+    uf: BR
 
   - id: jovempan
     nome: Jovem Pan
@@ -208,6 +236,7 @@ fontes:
     formato: rss
     url: https://jovempan.com.br/feed
     peso: 1
+    uf: BR
 
   - id: correiobraziliense
     nome: Correio Braziliense
@@ -215,6 +244,7 @@ fontes:
     formato: html
     url: https://www.correiobraziliense.com.br
     peso: 1
+    uf: DF
 
   - id: agencia_brasil
     nome: Agência Brasil
@@ -222,6 +252,219 @@ fontes:
     formato: rss
     url: https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml
     peso: 1
+    uf: BR
+
+
+  # ---------- Outros estados acompanhados ----------
+  # Pauta local desses estados chega marcada como "📍 Pauta local de outro estado".
+  # Maranhão
+  - id: g1ma
+    nome: g1 Maranhão
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/ma/
+    peso: 2
+    uf: MA
+
+  - id: imirante
+    nome: Imirante
+    tipo: regional
+    formato: html
+    url: https://imirante.com
+    peso: 1
+    uf: MA
+
+  - id: oimparcial
+    nome: O Imparcial
+    tipo: regional
+    formato: html
+    url: https://oimparcial.com.br
+    peso: 1
+    uf: MA
+
+  # Ceará
+  - id: g1ce
+    nome: g1 Ceará
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/ce/
+    peso: 2
+    uf: CE
+
+  - id: opovo
+    nome: O Povo
+    tipo: regional
+    formato: html
+    url: https://www.opovo.com.br
+    peso: 1
+    uf: CE
+
+  - id: diariodonordeste
+    nome: Diário do Nordeste
+    tipo: regional
+    formato: html
+    url: https://diariodonordeste.verdesmares.com.br
+    peso: 1
+    uf: CE
+
+  # Pará
+  - id: g1pa
+    nome: g1 Pará
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/pa/
+    peso: 2
+    uf: PA
+
+  - id: oliberal
+    nome: O Liberal
+    tipo: regional
+    formato: html
+    url: https://www.oliberal.com
+    peso: 1
+    uf: PA
+
+  - id: dol
+    nome: DOL - Diário Online
+    tipo: regional
+    formato: html
+    url: https://dol.com.br
+    peso: 1
+    uf: PA
+
+  # Amazonas
+  - id: g1am
+    nome: g1 Amazonas
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/am/
+    peso: 2
+    uf: AM
+
+  - id: acritica
+    nome: A Crítica
+    tipo: regional
+    formato: html
+    url: https://www.acritica.com
+    peso: 1
+    uf: AM
+
+  - id: d24am
+    nome: D24AM
+    tipo: regional
+    formato: html
+    url: https://d24am.com
+    peso: 1
+    uf: AM
+
+  # Acre
+  - id: g1ac
+    nome: g1 Acre
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/ac/
+    peso: 2
+    uf: AC
+
+  - id: ac24horas
+    nome: ac24horas
+    tipo: regional
+    formato: html
+    url: https://ac24horas.com
+    peso: 1
+    uf: AC
+
+  - id: contilnet
+    nome: ContilNet
+    tipo: regional
+    formato: html
+    url: https://contilnetnoticias.com.br
+    peso: 1
+    uf: AC
+
+  # Roraima
+  - id: g1rr
+    nome: g1 Roraima
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/rr/
+    peso: 2
+    uf: RR
+
+  - id: folhabv
+    nome: Folha BV
+    tipo: regional
+    formato: html
+    url: https://folhabv.com.br
+    peso: 1
+    uf: RR
+
+  - id: roraimaemtempo
+    nome: Roraima em Tempo
+    tipo: regional
+    formato: html
+    url: https://roraimaemtempo.com.br
+    peso: 1
+    uf: RR
+
+  # Santa Catarina
+  - id: g1sc
+    nome: g1 Santa Catarina
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/sc/
+    peso: 2
+    uf: SC
+
+  - id: nsctotal
+    nome: NSC Total
+    tipo: regional
+    formato: html
+    url: https://www.nsctotal.com.br
+    peso: 1
+    uf: SC
+
+  - id: ndmais
+    nome: ND+
+    tipo: regional
+    formato: html
+    url: https://ndmais.com.br
+    peso: 1
+    uf: SC
+
+  # São Paulo
+  - id: g1sp
+    nome: g1 São Paulo
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/sp/
+    peso: 2
+    uf: SP
+
+  - id: folha_cotidiano
+    nome: Folha Cotidiano (SP)
+    tipo: regional
+    formato: rss
+    url: https://feeds.folha.uol.com.br/cotidiano/rss091.xml
+    peso: 1
+    uf: SP
+
+  # Distrito Federal
+  - id: g1df
+    nome: g1 Distrito Federal
+    tipo: regional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/df/
+    peso: 2
+    uf: DF
+
+  - id: agenciabrasilia
+    nome: Agência Brasília (GDF)
+    tipo: regional
+    formato: html
+    url: https://www.agenciabrasilia.df.gov.br
+    peso: 1
+    uf: DF
 
 # ------------------------------------------------------------
 # REDES SOCIAIS

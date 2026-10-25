@@ -18,6 +18,7 @@ class ItemColetado:
     texto: str | None = None
     publicado_em: datetime | None = None
     peso: int = 1
+    uf: str = ""          # estado da fonte (PI, MA, CE...) ou BR para nacional
 
 
 def coletar_fonte(fonte: dict) -> list[ItemColetado]:

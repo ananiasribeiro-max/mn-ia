@@ -31,7 +31,7 @@ def interpretar(fonte: dict, conteudo: str) -> list[ItemColetado]:
             fonte_id=fonte["id"], fonte_nome=fonte["nome"], fonte_tipo=fonte["tipo"],
             titulo=titulo, url=e.get("link"),
             texto=_limpar(e.get("summary") or e.get("description")),
-            publicado_em=pub, peso=int(fonte.get("peso", 1)),
+            publicado_em=pub, peso=int(fonte.get("peso", 1)), uf=fonte.get("uf", ""),
         ))
     return itens
 

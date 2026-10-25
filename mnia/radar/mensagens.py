@@ -34,12 +34,39 @@ def situacao_concorrencia(item: Item) -> str:
     return ""
 
 
+NOME_UF = {"PI": "Piauí", "MA": "Maranhão", "CE": "Ceará", "PA": "Pará", "AM": "Amazonas", "AC": "Acre",
+           "RR": "Roraima", "SC": "Santa Catarina", "SP": "São Paulo", "DF": "Distrito Federal"}
+
+
+def linha_local(item: Item) -> str:
+    """📍 Pauta local (outro estado / Piauí) ou 🌎 nacional, a partir da análise e do estado da fonte."""
+    extra = item.analise_extra or {}
+    abr, local, uf = extra.get("abrangencia"), (extra.get("local") or "").strip(), extra.get("uf_fonte", "")
+    if not abr:
+        abr = "piaui" if uf == "PI" else "outro_estado" if uf and uf != "BR" else ""
+    if abr == "piaui":
+        return f"📍 <b>Pauta local · Piauí</b>" + (f" ({esc(local)})" if local and local not in ("PI", "Piauí") else "")
+    if abr == "outro_estado":
+        lugar = local or NOME_UF.get(uf, uf)
+        sufixo = f" — {esc(NOME_UF.get(lugar, lugar))}" if lugar else ""
+        liga = " · 🔗 tem ligação com o Piauí" if extra.get("liga_piaui") else ""
+        return f"📍 <b>Pauta local de outro estado</b>{sufixo}{liga}"
+    if abr == "nacional":
+        return "🇧🇷 Nacional" + (" · 🔗 tem ligação com o Piauí" if extra.get("liga_piaui") else "")
+    if abr == "internacional":
+        return "🌎 Internacional"
+    return ""
+
+
 def bloco_item(item: Item, detalhado: bool = True) -> str:
     plats = " · ".join(NOME_PLAT.get(p, p) for p in (item.plataformas or []))
     linhas = [
         f"{ICONE_PRIO.get(item.prioridade, '')} {ICONE_RISCO.get(item.risco, '')} "
         f"<b>{esc(item.resumo or item.titulo)}</b>",
     ]
+    loc = linha_local(item)
+    if loc:
+        linhas.append(loc)
     if detalhado and item.porque_importa:
         linhas.append(f"↳ {esc(item.porque_importa)}")
     meta = f"{esc(item.fonte_nome)} · relevância {item.relevancia}/10"

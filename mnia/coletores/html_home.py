@@ -49,7 +49,7 @@ def interpretar(fonte: dict, conteudo: str) -> list[ItemColetado]:
         vistos.add(url)
         itens.append(ItemColetado(
             fonte_id=fonte["id"], fonte_nome=fonte["nome"], fonte_tipo=fonte["tipo"],
-            titulo=titulo, url=url, peso=int(fonte.get("peso", 1)),
+            titulo=titulo, url=url, peso=int(fonte.get("peso", 1)), uf=fonte.get("uf", ""),
         ))
         if len(itens) >= 40:
             break
