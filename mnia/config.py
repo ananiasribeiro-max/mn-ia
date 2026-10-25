@@ -68,7 +68,7 @@ class Config:
         "MNIA_YOUTUBE_CANAL", "https://www.youtube.com/@meionortemais"))
     youtube_intervalo_min: int = field(default_factory=lambda: int(os.getenv("MNIA_YOUTUBE_INTERVALO_MIN", "15")))
     youtube_max_videos: int = field(default_factory=lambda: int(os.getenv("MNIA_YOUTUBE_MAX_VIDEOS", "3")))
-    cortes_por_video: int = field(default_factory=lambda: int(os.getenv("MNIA_CORTES_POR_VIDEO", "3")))
+    cortes_por_video: int = field(default_factory=lambda: int(os.getenv("MNIA_CORTES_POR_VIDEO", "1")))
     cortes_ligados: bool = field(default_factory=lambda: _bool("MNIA_CORTES_LIGADOS", True))
 
     # Laudas

@@ -100,6 +100,21 @@ def refazer_cortes(item_id: int) -> dict:
     return {"cortes": feitos, "falhas": falhas}
 
 
+def corte_indicado(item_id: int, inicio: float, quadro: str = "") -> dict:
+    """Um corte a partir do ponto que a redação indicou (ex.: 14:01), com enquadramento opcional."""
+    with sessao() as s:
+        it = s.get(Item, item_id)
+        vid, url, titulo = it.analise_extra["video_id"], it.url, it.titulo
+    trechos, info = legendas.obter(url)
+    if info.get("title") and titulo.startswith("Vídeo "):
+        titulo = info["title"]
+    c = dig.corte_indicado(titulo, trechos, inicio)
+    if quadro:
+        c["quadro"] = quadro
+    feitos, falhas = _enviar_cortes(item_id, vid, url, titulo, [c], trechos)
+    return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
+
+
 def enviar_modelos(item_id: int) -> dict:
     """Envia o 1º corte de um vídeo nos três modelos visuais, para comparação."""
     from ..video.layouts import MODELOS

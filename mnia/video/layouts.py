@@ -32,6 +32,24 @@ AZUL = "0x202C68"
 VERMELHO = "0xD71920"
 AMARELO = "0xFFD200"
 
+# Enquadramentos prontos (frações do quadro original: x, y, largura, altura).
+# "comentarista": janela da esquerda na tela dividida do Central Meio Norte, sem o GC.
+QUADROS = {
+    "comentarista": (0.005, 0.104, 0.352, 0.600),
+}
+
+
+def quadro_de(valor: str | None) -> tuple[float, float, float, float] | None:
+    if not valor:
+        return None
+    if valor in QUADROS:
+        return QUADROS[valor]
+    partes = [float(x) for x in valor.split(",")]
+    if len(partes) != 4:
+        raise ValueError("quadro deve ser um nome conhecido ou x,y,largura,altura")
+    return tuple(partes)  # type: ignore[return-value]
+
+
 MODELOS = {
     "mn": "Modelo MN — vídeo no alto, faixa com selo do programa e horário, manchete com destaque amarelo",
     "card": "Card Meio Norte — evolução do modelo atual (manchete no card branco, vídeo 16:9, faixa do programa)",
@@ -323,7 +341,8 @@ def legenda_y(modelo: str, titulo: str) -> int:
 
 
 def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, ini: float, fim: float,
-               marca: Marca | None = None, duracao_max: float | None = None, destaque: str = "") -> Path:
+               marca: Marca | None = None, duracao_max: float | None = None, destaque: str = "",
+               quadro: tuple[float, float, float, float] | None = None, crop: str | None = None) -> Path:
     """Monta o corte vertical no modelo escolhido. trechos em tempo do vídeo original; ini/fim do corte."""
     import shutil
     import subprocess
@@ -338,6 +357,12 @@ def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, in
         ass.write_text(ass_legenda(modelo, trechos, ini, fim, legenda_y(modelo, titulo)), encoding="utf-8")
         logo = LOGO if LOGO.exists() else (LOGO_PADRAO if modelo == "mn" and LOGO_PADRAO.exists() else None)
         grafo, rotulo = filtros(modelo, titulo, marca, pasta, ass, logo is not None, destaque)
+        if quadro and not crop:
+            x, y, w, h = quadro
+            crop = f"crop=trunc(iw*{w}/2)*2:trunc(ih*{h}/2)*2:trunc(iw*{x}):trunc(ih*{y})"
+        if crop:
+            grafo = [g.replace("[0:v]", "[src]") for g in grafo]
+            grafo.insert(0, f"[0:v]{crop}[src]")
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(entrada)]
         if logo:
             cmd += ["-i", str(logo)]

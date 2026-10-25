@@ -82,8 +82,10 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="mnia", description="MN-IA — IA como infraestrutura do Meio Norte")
     p.add_argument("comando", choices=["init-db", "status", "testar-fontes", "radar", "resumo",
                                        "clipping", "triagem", "saude", "rodar", "demo",
-                                       "laudas", "youtube", "video", "recortar", "modelos"])
-    p.add_argument("alvo", nargs="?", help="para 'video'/'recortar': endereço de um vídeo do YouTube")
+                                       "laudas", "youtube", "video", "recortar", "modelos", "corte"])
+    p.add_argument("alvo", nargs="?", help="para 'video'/'recortar'/'corte': endereço de um vídeo do YouTube")
+    p.add_argument("--inicio", help="para 'corte': ponto de início no vídeo (mm:ss ou hh:mm:ss)")
+    p.add_argument("--quadro", default="", help="para 'corte': enquadramento (ex.: comentarista ou x,y,l,a)")
     a = p.parse_args(argv)
     _log()
 
@@ -124,7 +126,7 @@ def main(argv: list[str] | None = None) -> None:
         from .youtube.pipeline import rodar_youtube
         e = rodar_youtube()
         print(f"YouTube: {e.itens_novos} novos, {e.itens_analisados} processados, erros: {e.erros}")
-    elif a.comando in ("video", "recortar", "modelos"):
+    elif a.comando in ("video", "recortar", "modelos", "corte"):
         # processa um vídeo específico agora (teste ou pedido avulso)
         from .db import Item, gerar_hash, sessao
         from .youtube.pipeline import enviar_modelos, processar_video, refazer_cortes
@@ -145,8 +147,15 @@ def main(argv: list[str] | None = None) -> None:
                 s.add(item)
                 s.flush()
             item_id = item.id
-        acao = {"recortar": refazer_cortes, "modelos": enviar_modelos}.get(a.comando, processar_video)
-        print(acao(item_id))
+        if a.comando == "corte":
+            from .digital.materia import mmss
+            from .youtube.pipeline import corte_indicado
+            if not a.inicio:
+                sys.exit("Informe --inicio mm:ss")
+            print(corte_indicado(item_id, mmss(a.inicio), a.quadro))
+        else:
+            acao = {"recortar": refazer_cortes, "modelos": enviar_modelos}.get(a.comando, processar_video)
+            print(acao(item_id))
     elif a.comando == "demo":
         from .demo import rodar_demo
         rodar_demo()

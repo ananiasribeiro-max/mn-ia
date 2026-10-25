@@ -141,13 +141,25 @@ def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho
     import os
     from . import layouts
     modelo = modelo or os.getenv("MNIA_CORTE_MODELO", "mn")
+    pedido = corte.get("quadro") or os.getenv("MNIA_CORTE_QUADRO", "auto")
+    quadro = None if pedido == "auto" else layouts.quadro_de(pedido)
     ini, fim = float(corte["ini_s"]), float(corte["fim_s"])
     pasta = PASTA / video_id
     bruto = baixar_trecho(video_url, ini, fim, pasta / f"bruto_{n}.mp4")
     try:
         saida = pasta / f"{n:02d}-{modelo}-{nome_seguro(corte.get('titulo', 'corte'))}.mp4"
+        crop = None
+        if pedido == "auto":
+            from . import enquadrar
+            try:
+                cw, ch, planos = enquadrar.planejar(bruto)
+                crop = enquadrar.filtro_crop(cw, ch, planos)
+                corte["planos"] = [(round(p.t0, 1), round(p.t1, 1), p.x, p.y, p.tipo) for p in planos]
+                log.info("Enquadramento %s: %s", video_id, corte["planos"])
+            except Exception as e:  # sem OpenCV ou vídeo estranho: segue sem recorte
+                log.warning("Enquadramento automático falhou: %s", e)
         return layouts.renderizar(bruto, saida, modelo, corte.get("titulo", ""), trechos, ini, fim,
-                                  destaque=corte.get("destaque", ""))
+                                  destaque=corte.get("destaque", ""), quadro=quadro, crop=crop)
     finally:
         bruto.unlink(missing_ok=True)
 
