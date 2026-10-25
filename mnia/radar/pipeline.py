@@ -39,8 +39,10 @@ def _utc_naive(dt: datetime | None) -> datetime | None:
 # ------------------------------------------------------------------ 1-2 coleta
 
 def gravar_itens(coletados: list[ItemColetado], origem: str) -> int:
+    """Grava itens novos. Fonte recém-incluída forma a própria linha de base (não dispara alertas)."""
     novos = 0
     with sessao() as s:
+        conhecidas = set(s.scalars(select(Item.fonte_id).where(Item.origem == origem).distinct()))
         for c in coletados:
             h = gerar_hash(c.fonte_id, c.titulo, c.url)
             if item_existe(s, h):
@@ -50,6 +52,9 @@ def gravar_itens(coletados: list[ItemColetado], origem: str) -> int:
                 fonte_tipo=c.fonte_tipo, url=c.url, titulo=c.titulo, texto=c.texto,
                 publicado_em=_utc_naive(c.publicado_em),
                 analise_extra={"peso": c.peso},
+                # fonte nova: só registra o que já estava publicado (sem alertar e sem fila de análise)
+                alertado=bool(conhecidas) and c.fonte_id not in conhecidas,
+                analisado=bool(conhecidas) and c.fonte_id not in conhecidas,
             ))
             s.flush()
             novos += 1
@@ -198,6 +203,39 @@ def alertar_urgentes() -> int:
     return len(fila)
 
 
+def alertar_topicos() -> int:
+    """Modo individual: cada tópico relevante (pauta/acompanhar) vai numa mensagem própria.
+
+    Um por assunto, os mais relevantes primeiro, até MNIA_RADAR_MAX_ENVIOS por rodada; o que
+    sobrar entra na rodada seguinte, e o que ficar mais de 3 h na fila é descartado (já esfriou).
+    """
+    cfg = config()
+    fila: list[tuple[int, str]] = []
+    with sessao() as s:
+        itens = s.execute(select(Item).where(
+            Item.origem == "radar", Item.analisado.is_(True), Item.alertado.is_(False),
+            Item.prioridade.in_(["pauta", "acompanhar"]), Item.fonte_tipo != "proprio",
+        ).order_by(Item.relevancia.desc(), Item.coletado_em.desc())).scalars().all()
+        limite_fila = agora() - timedelta(hours=3)
+        chaves: set = set()
+        for i in itens:
+            minimo = cfg.relevancia_minima_alerta if i.prioridade == "pauta" else cfg.relevancia_minima_alerta + 1
+            velho = i.coletado_em and i.coletado_em < limite_fila
+            repetido = i.assunto_chave and (i.assunto_chave in chaves or _ja_alertado_assunto(s, i.assunto_chave))
+            if (i.relevancia or 0) < minimo or velho or repetido:
+                i.alertado = True
+                continue
+            if len(fila) >= cfg.radar_max_envios:
+                continue   # fica para a próxima rodada
+            chaves.add(i.assunto_chave)
+            fila.append((i.id, mensagens.msg_topico(i)))
+            i.alertado = True
+        s.flush()
+    for item_id, texto in fila:
+        enviar(cfg.chat_radar, texto, tipo="topico", item_id=item_id)
+    return len(fila)
+
+
 def enviar_resumo(minutos: int = 60) -> int:
     cfg = config()
     fim = agora()
@@ -262,6 +300,8 @@ def rodar_radar(lista_fontes: list[dict] | None = None) -> Execucao:
                     f"Fontes com falha: {len(erros)}\n{falhas}", tipo="tecnico")
         else:
             alertas = alertar_urgentes()
+            if config().radar_modo == "individual":
+                alertas += alertar_topicos()
     except Exception as e:
         sucesso = False
         erros.append(traceback.format_exc(limit=3))

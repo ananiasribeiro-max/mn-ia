@@ -101,6 +101,121 @@ fontes:
     peso: 2
 
   # ---------- Nacionais ----------
+  # Peso 1–2: o radar só destaca o nacional que tem peso para o público do MN
+  # (eleição, governo federal, STF, Congresso, economia que mexe no bolso, Nordeste).
+  # Lista equilibrada entre veículos de linhas editoriais diferentes.
+  - id: g1
+    nome: g1
+    tipo: nacional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/
+    peso: 2
+
+  - id: g1_politica
+    nome: g1 Política
+    tipo: nacional
+    formato: rss
+    url: https://g1.globo.com/rss/g1/politica/
+    peso: 2
+
+  - id: folha
+    nome: Folha de S.Paulo
+    tipo: nacional
+    formato: rss
+    url: https://feeds.folha.uol.com.br/emcimadahora/rss091.xml
+    peso: 2
+
+  - id: uol
+    nome: UOL Notícias
+    tipo: nacional
+    formato: rss
+    url: https://rss.uol.com.br/feed/noticias.xml
+    peso: 2
+
+  - id: estadao
+    nome: Estadão Política
+    tipo: nacional
+    formato: rss
+    url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/politica/
+    peso: 2
+
+  - id: oglobo
+    nome: O Globo
+    tipo: nacional
+    formato: html
+    url: https://oglobo.globo.com
+    peso: 2
+
+  - id: cnnbrasil
+    nome: CNN Brasil
+    tipo: nacional
+    formato: rss
+    url: https://www.cnnbrasil.com.br/feed/
+    peso: 2
+
+  - id: poder360
+    nome: Poder360
+    tipo: nacional
+    formato: rss
+    url: https://www.poder360.com.br/feed/
+    peso: 2
+
+  - id: metropoles
+    nome: Metrópoles
+    tipo: nacional
+    formato: rss
+    url: https://www.metropoles.com/feed
+    peso: 2
+
+  - id: r7
+    nome: R7
+    tipo: nacional
+    formato: rss
+    url: https://noticias.r7.com/feed.xml
+    peso: 1
+
+  - id: bbcbrasil
+    nome: BBC News Brasil
+    tipo: nacional
+    formato: rss
+    url: https://feeds.bbci.co.uk/portuguese/rss.xml
+    peso: 1
+
+  - id: veja
+    nome: Veja
+    tipo: nacional
+    formato: rss
+    url: https://veja.abril.com.br/feed/
+    peso: 1
+
+  - id: cartacapital
+    nome: CartaCapital
+    tipo: nacional
+    formato: rss
+    url: https://www.cartacapital.com.br/feed/
+    peso: 1
+
+  - id: gazetadopovo
+    nome: Gazeta do Povo
+    tipo: nacional
+    formato: rss
+    url: https://www.gazetadopovo.com.br/feed/rss/republica.xml
+    peso: 1
+
+  - id: jovempan
+    nome: Jovem Pan
+    tipo: nacional
+    formato: rss
+    url: https://jovempan.com.br/feed
+    peso: 1
+
+  - id: correiobraziliense
+    nome: Correio Braziliense
+    tipo: nacional
+    formato: html
+    url: https://www.correiobraziliense.com.br
+    peso: 1
+
   - id: agencia_brasil
     nome: Agência Brasil
     tipo: nacional

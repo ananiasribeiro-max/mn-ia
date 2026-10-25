@@ -19,7 +19,9 @@ def test_deduplicacao():
 
 
 def test_ciclo_completo_linha_de_base_e_alerta(monkeypatch):
-    base = [_item("a", "concorrente", "Feira de artesanato reúne expositores no centro de Teresina")]
+    base = [_item("a", "concorrente", "Feira de artesanato reúne expositores no centro de Teresina"),
+            _item("mn", "proprio", "Previsão do tempo para Teresina nesta semana"),
+            _item("gov", "oficial", "Agenda do governador para esta segunda-feira")]
     monkeypatch.setattr(pipeline, "coletar_tudo", lambda f=None: (base, []))
     e1 = pipeline.rodar_radar()
     assert e1.alertas == 0  # primeira rodada não alerta
@@ -32,7 +34,7 @@ def test_ciclo_completo_linha_de_base_e_alerta(monkeypatch):
     monkeypatch.setattr(pipeline, "coletar_tudo", lambda f=None: (novos, []))
     e2 = pipeline.rodar_radar()
     assert e2.itens_novos == 3 and e2.itens_analisados == 3
-    assert e2.alertas == 1
+    assert e2.alertas == 2   # o urgente + o concurso como tópico individual (modo padrão)
 
     with sessao() as s:
         urg = s.scalars(select(Item).where(Item.prioridade == "urgente", Item.fonte_tipo == "concorrente")).one()
@@ -42,12 +44,10 @@ def test_ciclo_completo_linha_de_base_e_alerta(monkeypatch):
         assert mn.assunto_chave == urg.assunto_chave
         assert (urg.analise_extra or {}).get("concorrencia") in {"mn_ja_deu", "mn_deu_primeiro"}
 
-    # resumo leva o concurso e não repete o urgente
-    assert pipeline.enviar_resumo() == 1
     with sessao() as s:
         tipos = [a.tipo for a in s.scalars(select(Alerta))]
-    assert tipos.count("urgente") == 1 and tipos.count("resumo_hora") == 1
-    assert pipeline.enviar_resumo() == 0  # nada novo
+    assert tipos.count("urgente") == 1 and tipos.count("topico") == 1
+    assert pipeline.enviar_resumo() == 0  # nada pendente: tudo já foi como tópico
 
 
 def test_concorrencia_mn_nao_deu(monkeypatch):
@@ -93,3 +93,25 @@ def test_lote_com_falha_nao_derruba_a_rodada(monkeypatch):
     assert pipeline.analisar_pendentes("radar") == 5
     with sessao() as s:
         assert s.scalars(select(Item).where(Item.analisado.is_(False))).one().titulo.startswith("Manchete QUEBRA")
+
+
+def test_modo_individual_manda_um_topico_por_mensagem(monkeypatch):
+    from mnia.radar import mensagens
+    enviados = []
+    monkeypatch.setattr(pipeline, "enviar", lambda canal, texto, **kw: enviados.append(texto))
+    lote = [_item("a", "concorrente", f"Governo do Piauí anuncia obra numero {n} em Teresina hoje") for n in range(3)]
+    pipeline.gravar_itens(lote, "radar")
+    with sessao() as s:
+        for n, i in enumerate(s.scalars(select(Item)).all()):
+            i.analisado, i.prioridade, i.relevancia, i.assunto_chave = True, "pauta", 8, f"obra-{n}"
+    assert pipeline.alertar_topicos() == 3
+    assert len(enviados) == 3 and all("RADAR MN · PAUTA" in t for t in enviados)
+    assert pipeline.alertar_topicos() == 0   # não repete
+
+
+def test_fonte_nova_forma_linha_de_base_propria():
+    pipeline.gravar_itens([_item("a", "concorrente", "Manchete antiga da fonte A em Teresina")], "radar")
+    pipeline.gravar_itens([_item("nova", "nacional", "Manchete que já estava no portal novo")], "radar")
+    with sessao() as s:
+        nova = s.scalars(select(Item).where(Item.fonte_id == "nova")).one()
+        assert nova.alertado and nova.analisado

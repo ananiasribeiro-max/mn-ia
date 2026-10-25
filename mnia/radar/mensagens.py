@@ -64,6 +64,11 @@ def msg_urgente(item: Item) -> str:
     return "🚨 <b>RADAR MN — URGENTE</b>\n\n" + bloco_item(item)
 
 
+def msg_topico(item: Item) -> str:
+    nome = {"pauta": "PAUTA", "acompanhar": "ACOMPANHAR"}.get(item.prioridade, "RADAR")
+    return f"📡 <b>RADAR MN · {nome}</b>\n\n" + bloco_item(item)
+
+
 def msg_resumo(itens: list[Item], inicio: datetime, fim: datetime) -> str:
     cab = f"📡 <b>RADAR MN — {hora_local(inicio)} às {hora_local(fim)}</b>"
     if not itens:

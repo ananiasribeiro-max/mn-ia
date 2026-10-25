@@ -89,6 +89,9 @@ class Config:
     fuso: str = field(default_factory=lambda: os.getenv("MNIA_FUSO", "America/Fortaleza"))
     radar_intervalo_min: int = field(default_factory=lambda: int(os.getenv("MNIA_RADAR_INTERVALO_MIN", "5")))
     radar_resumo_horario: bool = field(default_factory=lambda: _bool("MNIA_RADAR_RESUMO_HORARIO", True))
+    # individual: cada tópico relevante vai sozinho, a cada rodada (5 min); resumo: um resumo por hora
+    radar_modo: str = field(default_factory=lambda: os.getenv("MNIA_RADAR_MODO", "individual"))
+    radar_max_envios: int = field(default_factory=lambda: int(os.getenv("MNIA_RADAR_MAX_ENVIOS", "8")))
     clipping_horario: str = field(default_factory=lambda: os.getenv("MNIA_CLIPPING_HORARIO", "05:30"))
     triagem_intervalo_min: int = field(default_factory=lambda: int(os.getenv("MNIA_TRIAGEM_INTERVALO_MIN", "10")))
     relevancia_minima_alerta: int = field(default_factory=lambda: int(os.getenv("MNIA_RELEVANCIA_MINIMA", "6")))

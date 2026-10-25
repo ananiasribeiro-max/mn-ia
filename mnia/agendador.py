@@ -64,7 +64,7 @@ def iniciar() -> None:
     ag = BlockingScheduler(timezone=cfg.fuso)
     ag.add_job(_seguro("radar", rodar_radar), "interval", minutes=cfg.radar_intervalo_min,
                max_instances=1, coalesce=True)
-    if cfg.radar_resumo_horario:
+    if cfg.radar_resumo_horario and cfg.radar_modo != "individual":
         ag.add_job(_seguro("resumo", enviar_resumo), "cron", hour="6-23", minute=2,
                    max_instances=1, coalesce=True)
     ag.add_job(_seguro("clipping", rodar_clipping), "cron", hour=hh, minute=mm, max_instances=1)
@@ -85,6 +85,21 @@ def iniciar() -> None:
            f"clipping às {cfg.clipping_horario} · triagem {'ligada' if cfg.imap_host else 'desligada'}\n"
            "Cortes pelo Telegram: mande /ajuda",
            tipo="tecnico")
+    try:  # situação das fontes no grupo técnico a cada partida (mostra fonte nova que não responde)
+        from .coletores import coletar_fonte
+        from .config import fontes as _fontes
+        ruins = []
+        for f in _fontes():
+            try:
+                if not coletar_fonte(f):
+                    ruins.append(f"⚠️ {f['nome']}: sem itens")
+            except Exception as e:
+                ruins.append(f"❌ {f['nome']}: {type(e).__name__}")
+        total = len(_fontes())
+        enviar(cfg.chat_tecnico, f"📡 <b>Fontes do radar:</b> {total - len(ruins)}/{total} respondendo"
+               + ("\n" + "\n".join(ruins) if ruins else ""), tipo="tecnico")
+    except Exception as e:
+        log.warning("Teste de fontes na partida falhou: %s", e)
     from .bot import iniciar_em_segundo_plano
     iniciar_em_segundo_plano()  # comandos /corte pelo Telegram + pré-carga dos modelos de transcrição
     rodar_radar()  # primeira rodada imediata
