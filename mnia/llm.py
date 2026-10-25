@@ -84,6 +84,27 @@ def _cliente_anthropic():
     return _cliente
 
 
+# Modelos 5.5 pensam por padrão e o raciocínio consome max_tokens. Para tarefas de
+# redação/classificação com JSON, desligamos o raciocínio prévio ("between_tools").
+_recusam_between_tools: set[str] = set()
+
+
+def _criar(modelo: str, max_tokens: int, sistema: str, conteudo: str):
+    import anthropic
+    args = dict(model=modelo, max_tokens=max_tokens, system=sistema,
+                messages=[{"role": "user", "content": conteudo}])
+    if modelo not in _recusam_between_tools:
+        try:
+            return _cliente_anthropic().messages.create(
+                **args, extra_body={"thinking": {"type": "between_tools"}})
+        except anthropic.BadRequestError as e:
+            if "thinking" not in str(e).lower():
+                raise
+            log.info("Modelo não aceita thinking=between_tools; seguindo com o padrão.")
+            _recusam_between_tools.add(modelo)
+    return _cliente_anthropic().messages.create(**args)
+
+
 def chamar(
     *,
     modulo: str,
@@ -115,12 +136,7 @@ def chamar(
     ultimo_erro: Exception | None = None
     for i in range(tentativas):
         try:
-            resp = _cliente_anthropic().messages.create(
-                model=modelo,
-                max_tokens=max_tokens,
-                system=sistema,
-                messages=[{"role": "user", "content": conteudo}],
-            )
+            resp = _criar(modelo, max_tokens, sistema, conteudo)
             texto = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
             _registrar_custo(modulo, modelo, resp.usage.input_tokens, resp.usage.output_tokens)
             if not json_saida:

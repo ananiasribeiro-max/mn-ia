@@ -81,7 +81,7 @@ def gerar(titulo: str, descricao: str, transcricao: str, duracao: float) -> dict
         {"titulo": titulo, "descricao": descricao[:800], "duracao_seg": int(duracao or 0)},
         ensure_ascii=False) + "\n\nTRANSCRIÇÃO:\n" + transcricao)
     r = chamar(modulo="digital", tarefa=TAREFA.format(n=n), conteudo=conteudo,
-               modelo=config().modelo_redacao, max_tokens=8000,
+               modelo=config().modelo_redacao, max_tokens=16000,
                simulador=lambda: simular(titulo, duracao, n))
     r.setdefault("materias", [])
     r.setdefault("cortes", [])
