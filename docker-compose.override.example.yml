@@ -1,0 +1,14 @@
+# Atualização automática: confere a cada 5 min se há imagem nova do MN-IA e reinicia só ela.
+# No servidor, copie para docker-compose.override.yml (o compose junta os dois sozinho).
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    environment:
+      DOCKER_API_VERSION: "1.44"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_CLEANUP: "true"
+    command: mn-ia-mnia-1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.docker/config.json:/config.json:ro
