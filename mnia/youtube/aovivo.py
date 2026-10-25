@@ -49,23 +49,84 @@ def duracao_atual(i: dict) -> float:
     return float(i.get("duration") or 0)
 
 
+def _formatos_live(url: str) -> tuple[dict, float]:
+    """URLs dos fragmentos DASH (áudio 140, vídeo 137/136) e duração de cada fragmento."""
+    import urllib.request
+    import yt_dlp
+    with yt_dlp.YoutubeDL({**opcoes_base(), "live_from_start": True, "skip_download": True}) as ydl:
+        i = ydl.extract_info(url, download=False)
+    urls = {}
+    for f in i.get("formats", []):
+        fid = str(f.get("format_id", "")).split("-")[0]
+        if fid in ("140", "137", "136", "135") and f.get("url") and fid not in urls:
+            urls[fid] = f["url"]
+    if "140" not in urls:
+        raise RuntimeError("transmissão sem áudio 140 em DASH")
+    r = urllib.request.urlopen(urls["140"] + "&sq=0", timeout=30)
+    head_seq = int(r.headers.get("X-Head-Seqnum") or 0)
+    head_t = float(r.headers.get("X-Head-Time-Sec") or 0)
+    dur = head_t / head_seq if head_seq and head_t else 5.0
+    return urls, dur
+
+
+def _baixar_fragmentos(base: str, sq0: int, sq1: int, destino: Path) -> Path:
+    import urllib.request
+    from concurrent.futures import ThreadPoolExecutor
+
+    def pega(sq: int) -> bytes:
+        for tentativa in range(4):
+            try:
+                return urllib.request.urlopen(f"{base}&sq={sq}", timeout=30).read()
+            except Exception:
+                time.sleep(1 + tentativa)
+        raise RuntimeError(f"fragmento {sq} falhou")
+
+    with ThreadPoolExecutor(8) as ex:
+        partes = list(ex.map(pega, range(sq0, sq1 + 1)))
+    destino.write_bytes(b"".join(partes))
+    return destino
+
+
 def baixar(url: str, ini: float, fim: float, destino: Path, *, so_audio: bool, ao_vivo: bool) -> Path:
+    import subprocess
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    ini = max(0.0, ini)
+    if ao_vivo:
+        # transmissão em andamento: busca os fragmentos DASH pelo número de sequência (DVR)
+        urls, dur = _formatos_live(url)
+        sq0, sq1 = int(ini // dur), int(fim // dur)
+        desloc = ini - sq0 * dur
+        tmp = destino.parent / (destino.stem + "_frag")
+        tmp.mkdir(exist_ok=True)
+        a = _baixar_fragmentos(urls["140"], sq0, sq1, tmp / "a.mp4")
+        entradas = ["-i", str(a)]
+        if not so_audio:
+            vid = next(urls[k] for k in ("137", "136", "135") if k in urls)
+            v = _baixar_fragmentos(vid, sq0, sq1, tmp / "v.mp4")
+            entradas = ["-i", str(v), "-i", str(a)]
+        saida = destino.with_suffix(".m4a" if so_audio else ".mp4")
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", *entradas, "-ss", f"{desloc:.2f}", "-t", f"{fim - ini:.2f}"]
+        cmd += (["-vn", "-c:a", "aac", "-b:a", "128k"] if so_audio else
+                ["-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                 "-c:a", "aac", "-b:a", "160k"])
+        subprocess.run(cmd + [str(saida)], check=True, capture_output=True, timeout=900)
+        for f in tmp.iterdir():
+            f.unlink()
+        tmp.rmdir()
+        return saida
     import yt_dlp
     from yt_dlp.utils import download_range_func
-    destino.parent.mkdir(parents=True, exist_ok=True)
     base = destino.with_suffix("")
     op = {
         **opcoes_base(),
         "format": "ba/b" if so_audio else "bv*[height<=1080]+ba/b[height<=1080]/b",
-        "download_ranges": download_range_func(None, [(max(0.0, ini), fim)]),
+        "download_ranges": download_range_func(None, [(ini, fim)]),
         "outtmpl": str(base) + ".%(ext)s",
         "noplaylist": True,
     }
     if not so_audio:
         op["merge_output_format"] = "mp4"
         op["force_keyframes_at_cuts"] = True
-    if ao_vivo:
-        op["live_from_start"] = True
     with yt_dlp.YoutubeDL(op) as ydl:
         ydl.download([url])
     arqs = [a for a in sorted(base.parent.glob(base.name + ".*")) if a.suffix not in (".part", ".ytdl")]
@@ -110,17 +171,39 @@ def procurar(palavras: list[tuple[float, float, str]], frase: str, minimo: float
     return quando if melhor >= minimo else None
 
 
-def achar_frase(url: str, frase: str, janela: int = 600, max_janelas: int = 18) -> tuple[float, dict]:
-    """Procura a frase da borda ao vivo para trás. Devolve (segundo de início, info)."""
+def segundo_da_hora(i: dict, hora: str, fuso: str = "America/Fortaleza") -> float | None:
+    """Converte a hora do relógio (ex.: 02:16) em segundos desde o início da transmissão."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    ini = i.get("release_timestamp") or i.get("timestamp")
+    if not ini or not hora:
+        return None
+    t0 = datetime.fromtimestamp(float(ini), ZoneInfo(fuso))
+    hh, mm = (int(x) for x in hora.split(":")[:2])
+    alvo = t0.replace(hour=hh, minute=mm, second=0)
+    if alvo < t0 - timedelta(hours=1):
+        alvo += timedelta(days=1)
+    return max(0.0, (alvo - t0).total_seconds())
+
+
+def achar_frase(url: str, frase: str, janela: int = 600, max_janelas: int = 18,
+                hora: str = "") -> tuple[float, dict]:
+    """Procura a frase (perto da hora indicada, ou da borda ao vivo para trás)."""
     i = info(url)
     ao_vivo = bool(i.get("is_live") or i.get("live_status") == "is_live")
     fim = duracao_atual(i)
     if fim <= 0:
         raise RuntimeError("não consegui saber a duração da transmissão")
+    perto = segundo_da_hora(i, hora)
+    if perto is not None:
+        janelas = [(perto - 240, perto + 360), (perto - 840, perto - 220), (perto + 340, perto + 940)]
+    else:
+        janelas = [(fim - (k + 1) * janela - 20, fim - k * janela) for k in range(max_janelas)]
     with tempfile.TemporaryDirectory() as tmp:
-        for k in range(max_janelas):
-            b = fim - k * janela
-            a = max(0.0, b - janela - 20)
+        for k, (a, b) in enumerate(janelas):
+            a, b = max(0.0, a), min(fim, b)
+            if b <= a:
+                continue
             log.info("Procurando a frase entre %.0f s e %.0f s", a, b)
             audio = baixar(url, a, b, Path(tmp) / f"a{k}.m4a", so_audio=True, ao_vivo=ao_vivo)
             _, palavras = transcrever(audio, a, "base")
@@ -128,6 +211,4 @@ def achar_frase(url: str, frase: str, janela: int = 600, max_janelas: int = 18) 
             if achou is not None:
                 return achou, i
             audio.unlink(missing_ok=True)
-            if a <= 0:
-                break
     raise RuntimeError("não encontrei a frase nas últimas horas da transmissão")

@@ -119,7 +119,7 @@ def corte_indicado(item_id: int, inicio: float, quadro: str = "", fotos: list | 
 
 
 def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | None = None,
-                    credito: str = "") -> dict:
+                    credito: str = "", hora: str = "") -> dict:
     """Corte a partir de uma frase dita no vídeo (serve para transmissões ao vivo, sem legenda)."""
     import tempfile
     from pathlib import Path
@@ -127,7 +127,7 @@ def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | No
     with sessao() as s:
         it = s.get(Item, item_id)
         vid, url, titulo = it.analise_extra["video_id"], it.url, it.titulo
-    inicio, info = aovivo.achar_frase(url, frase)
+    inicio, info = aovivo.achar_frase(url, frase, hora=hora)
     ao_vivo = bool(info.get("is_live") or info.get("live_status") == "is_live")
     if info.get("title") and titulo.startswith("Vídeo "):
         titulo = info["title"]

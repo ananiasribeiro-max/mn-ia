@@ -89,6 +89,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("alvo", nargs="?", help="para 'video'/'recortar'/'corte': endereço de um vídeo do YouTube")
     p.add_argument("--inicio", help="para 'corte': ponto de início no vídeo (mm:ss ou hh:mm:ss)")
     p.add_argument("--frase", help="para 'corte': começo da fala onde o corte inicia (serve para vídeo ao vivo)")
+    p.add_argument("--hora", default="", help="para 'corte' com --frase: hora aproximada da fala no relógio (ex.: 02:16)")
     p.add_argument("--quadro", default="", help="para 'corte': enquadramento (ex.: comentarista ou x,y,l,a)")
     p.add_argument("--foto", action="append", default=[],
                    help="para 'corte': foto no pé, como arquivo:Nome (até 2; arquivos em dados/fotos)")
@@ -168,7 +169,7 @@ def main(argv: list[str] | None = None) -> None:
                 fotos.append((str(caminho), nome))
             if a.frase:
                 from .youtube.pipeline import corte_por_frase
-                print(corte_por_frase(item_id, a.frase, a.quadro, fotos, a.credito))
+                print(corte_por_frase(item_id, a.frase, a.quadro, fotos, a.credito, a.hora))
             else:
                 print(corte_indicado(item_id, mmss(a.inicio), a.quadro, fotos, a.credito))
         else:

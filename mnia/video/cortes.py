@@ -67,9 +67,9 @@ def baixar_trecho(video_url: str, ini: float, fim: float, destino: Path, ao_vivo
         "outtmpl": str(base) + ".%(ext)s",
         "noplaylist": True,
     }
-    if ao_vivo:  # transmissão em andamento: baixa pelo relógio desde o início da live
-        opcoes["live_from_start"] = True
-        opcoes["format"] = "bv*[height<=1080]+ba/b[height<=1080]/b"
+    if ao_vivo:  # transmissão em andamento: fragmentos DASH pelo número de sequência
+        from ..youtube.aovivo import baixar
+        return baixar(video_url, ini, fim, destino, so_audio=False, ao_vivo=True)
     with yt_dlp.YoutubeDL(opcoes) as ydl:
         ydl.download([video_url])
     arquivos = sorted(base.parent.glob(base.name + ".*"))
