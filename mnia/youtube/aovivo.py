@@ -196,28 +196,67 @@ def segundo_da_hora(i: dict, hora: str, fuso: str = "America/Fortaleza") -> floa
 
 
 def achar_frase(url: str, frase: str, janela: int = 600, max_janelas: int = 18,
-                hora: str = "") -> tuple[float, dict]:
-    """Procura a frase (perto da hora indicada, ou da borda ao vivo para trás)."""
+                hora: str = "", pasta: Path | None = None) -> tuple[float, dict, Path | None, float]:
+    """Procura a frase (perto da hora indicada, ou da borda ao vivo para trás).
+
+    Devolve (segundo de início, info, áudio da janela onde achou, início da janela).
+    Com `pasta`, o áudio da janela fica guardado para reaproveitar na legenda do corte.
+    """
     i = info(url)
     ao_vivo = bool(i.get("is_live") or i.get("live_status") == "is_live")
     fim = duracao_atual(i)
     if fim <= 0:
         raise RuntimeError("não consegui saber a duração da transmissão")
     perto = segundo_da_hora(i, hora)
-    if perto is not None:
-        janelas = [(perto - 240, perto + 360), (perto - 840, perto - 220), (perto + 340, perto + 940)]
+    if perto is not None:   # começa estreito (4 min) e abre aos poucos
+        janelas = [(perto - 90, perto + 150), (perto - 420, perto - 70), (perto + 130, perto + 460),
+                   (perto - 960, perto - 400), (perto + 440, perto + 980)]
     else:
         janelas = [(fim - (k + 1) * janela - 20, fim - k * janela) for k in range(max_janelas)]
-    with tempfile.TemporaryDirectory() as tmp:
+    tmp_ctx = tempfile.TemporaryDirectory() if pasta is None else None
+    dirp = Path(tmp_ctx.name) if tmp_ctx else pasta
+    try:
         for k, (a, b) in enumerate(janelas):
             a, b = max(0.0, a), min(fim, b)
             if b <= a:
                 continue
             log.info("Procurando a frase entre %.0f s e %.0f s", a, b)
-            audio = baixar(url, a, b, Path(tmp) / f"a{k}.m4a", so_audio=True, ao_vivo=ao_vivo)
+            audio = baixar(url, a, b, dirp / f"janela{k}.m4a", so_audio=True, ao_vivo=ao_vivo)
             _, palavras = transcrever(audio, a, "base")
             achou = procurar(palavras, frase)
             if achou is not None:
-                return achou, i
+                return achou, i, (audio if pasta is not None else None), a
             audio.unlink(missing_ok=True)
-    raise RuntimeError("não encontrei a frase nas últimas horas da transmissão")
+    finally:
+        if tmp_ctx:
+            tmp_ctx.cleanup()
+    raise RuntimeError("não encontrei a frase perto da hora indicada" if hora else
+                       "não encontrei a frase nas últimas horas da transmissão")
+
+
+def duracao_arquivo(arq: Path) -> float:
+    import subprocess
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(arq)],
+                       capture_output=True, text=True, timeout=30)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def recortar_audio(audio: Path, ini_rel: float, dur: float, destino: Path) -> Path:
+    import subprocess
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{max(0.0, ini_rel):.2f}", "-i", str(audio),
+                    "-t", f"{dur:.2f}", "-vn", "-c:a", "aac", "-b:a", "128k", str(destino)],
+                   check=True, capture_output=True, timeout=300)
+    return destino
+
+
+def precarregar() -> None:
+    """Carrega os modelos de transcrição na memória (evita espera no primeiro corte)."""
+    for nome in ("base", "small"):
+        try:
+            _modelo(nome)
+            log.info("Modelo de transcrição %s carregado", nome)
+        except Exception as e:
+            log.warning("Não carreguei o modelo %s: %s", nome, e)

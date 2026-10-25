@@ -118,6 +118,26 @@ def corte_indicado(item_id: int, inicio: float, quadro: str = "", fotos: list | 
     return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
 
 
+def item_para_url(url: str) -> int:
+    """Item do banco para um vídeo do YouTube (cria se não existir)."""
+    import re as _re
+    m = _re.search(r"(?:v=|youtu\.be/|shorts/|live/)([\w-]{11})", url or "")
+    if not m:
+        raise ValueError("endereço de vídeo do YouTube inválido")
+    vid = m.group(1)
+    url = f"https://www.youtube.com/watch?v={vid}"
+    with sessao() as s:
+        h = gerar_hash("youtube", vid, url)
+        item = s.scalar(select(Item).where(Item.hash == h))
+        if item is None:
+            item = Item(hash=h, origem="youtube", fonte_id="youtube", fonte_nome="YouTube",
+                        fonte_tipo="proprio", url=url, titulo=f"Vídeo {vid}",
+                        analise_extra={"video_id": vid, "tentativas": 0})
+            s.add(item)
+            s.flush()
+        return item.id
+
+
 def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | None = None,
                     credito: str = "", hora: str = "") -> dict:
     """Corte a partir de uma frase dita no vídeo (serve para transmissões ao vivo, sem legenda)."""
@@ -127,16 +147,22 @@ def corte_por_frase(item_id: int, frase: str, quadro: str = "", fotos: list | No
     with sessao() as s:
         it = s.get(Item, item_id)
         vid, url, titulo = it.analise_extra["video_id"], it.url, it.titulo
-    inicio, info = aovivo.achar_frase(url, frase, hora=hora)
-    ao_vivo = bool(info.get("is_live") or info.get("live_status") == "is_live")
-    if info.get("title") and titulo.startswith("Vídeo "):
-        titulo = info["title"]
-        with sessao() as s:
-            s.get(Item, item_id).titulo = titulo
-    inicio = max(0.0, inicio - 0.3)
-    # legenda precisa do trecho (modelo maior) para o corte e para o Claude escolher o fim
     with tempfile.TemporaryDirectory() as tmp:
-        audio = aovivo.baixar(url, inicio, inicio + 100, Path(tmp) / "trecho.m4a", so_audio=True, ao_vivo=ao_vivo)
+        inicio, info, janela, ini_janela = aovivo.achar_frase(url, frase, hora=hora, pasta=Path(tmp))
+        ao_vivo = bool(info.get("is_live") or info.get("live_status") == "is_live")
+        if info.get("title") and titulo.startswith("Vídeo "):
+            titulo = info["title"]
+            with sessao() as s:
+                s.get(Item, item_id).titulo = titulo
+        inicio = max(0.0, inicio - 0.3)
+        # legenda do trecho com o modelo maior; reaproveita o áudio da busca quando ele cobre o trecho
+        rel = inicio - ini_janela
+        dur_janela = aovivo.duracao_arquivo(janela) if janela else 0
+        if janela and rel + 100 <= dur_janela:
+            audio = aovivo.recortar_audio(janela, rel, 100, Path(tmp) / "trecho.m4a")
+        else:
+            audio = aovivo.baixar(url, inicio, inicio + 100, Path(tmp) / "trecho.m4a", so_audio=True,
+                                  ao_vivo=ao_vivo)
         trechos, _ = aovivo.transcrever(audio, inicio, "small")
     c = dig.corte_indicado(titulo, trechos, inicio)
     c["ao_vivo"] = ao_vivo

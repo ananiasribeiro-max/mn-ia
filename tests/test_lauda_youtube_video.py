@@ -166,3 +166,14 @@ def test_procurar_frase_tolera_erros_de_transcricao():
     palavras = [(float(i), float(i) + 0.5, w) for i, w in enumerate(texto.split())]
     assert procurar(palavras, "A onda vermelha do Partido dos Trabalhadores") == 4.0
     assert procurar(palavras, "frase que nunca foi dita aqui de jeito nenhum") is None
+
+
+def test_comando_corte_do_telegram():
+    from mnia.bot import interpretar
+    assert interpretar("oi") is None
+    p = interpretar("/corte https://www.youtube.com/watch?v=kpp-DKFrq0U 14:01")
+    assert p["inicio"] == "14:01" and not p["frase"]
+    p = interpretar('/corte https://youtu.be/PT1elxQmzqg “A onda vermelha do PT” 02:16')
+    assert p["frase"] == "A onda vermelha do PT" and p["hora"] == "02:16" and "youtu" in p["url"]
+    p = interpretar("/corte@MNIAbot https://youtu.be/PT1elxQmzqg a onda vermelha do partido")
+    assert p["frase"] == "a onda vermelha do partido" and p["hora"] == ""

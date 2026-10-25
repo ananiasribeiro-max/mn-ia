@@ -82,7 +82,10 @@ def iniciar() -> None:
     modo = "SIMULADO (sem chave da Anthropic)" if cfg.modo_simulado else "Claude ativo"
     enviar(cfg.chat_tecnico,
            f"🟢 <b>MN-IA ligado</b>\nModo: {modo}\nRadar a cada {cfg.radar_intervalo_min} min · "
-           f"clipping às {cfg.clipping_horario} · triagem {'ligada' if cfg.imap_host else 'desligada'}",
+           f"clipping às {cfg.clipping_horario} · triagem {'ligada' if cfg.imap_host else 'desligada'}\n"
+           "Cortes pelo Telegram: mande /ajuda",
            tipo="tecnico")
+    from .bot import iniciar_em_segundo_plano
+    iniciar_em_segundo_plano()  # comandos /corte pelo Telegram + pré-carga dos modelos de transcrição
     rodar_radar()  # primeira rodada imediata
     ag.start()

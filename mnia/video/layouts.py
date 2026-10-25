@@ -401,7 +401,7 @@ def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, in
         cmd += ["-filter_complex", ";".join(grafo), "-map", rotulo, "-map", "0:a?"]
         if duracao_max:
             cmd += ["-t", f"{duracao_max:.2f}"]
-        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+        cmd += ["-c:v", "libx264", "-preset", "superfast", "-crf", "23", "-pix_fmt", "yuv420p",
                 "-profile:v", "high", "-level", "4.1", "-aspect", "9:16", "-r", "30",
                 "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-movflags", "+faststart", str(saida)]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
