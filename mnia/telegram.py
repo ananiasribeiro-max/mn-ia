@@ -62,10 +62,11 @@ def enviar(canal: str, texto: str, *, tipo: str, item_id: int | None = None) -> 
                 }, timeout=20)
                 if r.status_code != 200:
                     sucesso = False
-                    log.error("Telegram %s: %s", r.status_code, r.text[:300])
+                    log.error("Telegram %s no chat %s: %s", r.status_code, canal, r.text[:300])
             except httpx.HTTPError as e:
                 sucesso = False
-                log.error("Telegram falhou: %s", e)
+                # a mensagem de erro do httpx pode conter a URL com o token: não registrar
+                log.error("Telegram falhou no chat %s: %s", canal, type(e).__name__)
     try:
         with sessao() as s:
             s.add(Alerta(item_id=item_id, tipo=tipo, canal=canal or "simulado",

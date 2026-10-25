@@ -22,6 +22,9 @@ from .config import config, fontes
 
 def _log():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # httpx registra a URL completa de cada requisição; a do Telegram contém o token do bot.
+    for ruidoso in ("httpx", "httpcore", "anthropic"):
+        logging.getLogger(ruidoso).setLevel(logging.WARNING)
 
 
 def cmd_status() -> int:
