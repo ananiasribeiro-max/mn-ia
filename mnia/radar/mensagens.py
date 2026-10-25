@@ -82,7 +82,7 @@ def bloco_item(item: Item, detalhado: bool = True) -> str:
     meta = f"{esc(item.fonte_nome)} · relevância {item.relevancia}/10"
     if item.editoria:
         meta += f" · {esc(item.editoria)}"
-    if plats:
+    if plats and not detalhado:
         meta += f" · indicado: {plats}"
     linhas.append(f"<i>{meta}</i>")
     conc = situacao_concorrencia(item)

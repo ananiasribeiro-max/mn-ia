@@ -46,7 +46,8 @@ def _simular(canal: str, texto: str) -> None:
     print(f"\n----- TELEGRAM ({canal}) -----\n{texto}\n")
 
 
-def enviar(canal: str, texto: str, *, tipo: str, item_id: int | None = None) -> bool:
+def enviar(canal: str, texto: str, *, tipo: str, item_id: int | None = None,
+           botoes: list | None = None, responder_a: int | None = None) -> bool:
     """Envia texto (HTML do Telegram) para um chat. Retorna True se entregue."""
     cfg = config()
     sucesso = True
@@ -54,12 +55,15 @@ def enviar(canal: str, texto: str, *, tipo: str, item_id: int | None = None) -> 
         _simular(canal or "sem-canal", texto)
     else:
         url = f"https://api.telegram.org/bot{cfg.telegram_token}/sendMessage"
-        for parte in _partes(texto):
+        partes = _partes(texto)
+        for n, parte in enumerate(partes):
+            corpo = {"chat_id": canal, "text": parte, "parse_mode": "HTML", "disable_web_page_preview": True}
+            if botoes and n == len(partes) - 1:
+                corpo["reply_markup"] = {"inline_keyboard": botoes}
+            if responder_a and n == 0:
+                corpo["reply_parameters"] = {"message_id": responder_a, "allow_sending_without_reply": True}
             try:
-                r = httpx.post(url, json={
-                    "chat_id": canal, "text": parte, "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                }, timeout=20)
+                r = httpx.post(url, json=corpo, timeout=20)
                 if r.status_code != 200:
                     sucesso = False
                     log.error("Telegram %s no chat %s: %s", r.status_code, canal, r.text[:300])

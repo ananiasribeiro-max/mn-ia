@@ -105,6 +105,41 @@ def _executar(chat: str, p: dict) -> None:
         enviar(chat, f"⚠️ Não consegui fazer o corte: {esc(str(e)[:300])}", tipo="bot")
 
 
+_fila_gerar: "queue.Queue[tuple[str, int, str, int]]" = queue.Queue()
+
+
+def _gerador() -> None:
+    """Gera pauta/matéria/post/nota quando alguém toca no botão de um tópico do radar."""
+    from .radar import produtos
+    while True:
+        chat, msg_id, alvo, item_id = _fila_gerar.get()
+        try:
+            r = produtos.gerar(item_id, alvo)
+            enviar(chat, produtos.formatar(alvo, r), tipo=f"produto_{alvo}", item_id=item_id, responder_a=msg_id)
+        except Exception as e:
+            log.exception("Geração %s do item %s falhou", alvo, item_id)
+            enviar(chat, f"⚠️ Não consegui gerar ({esc(alvo)}): {esc(str(e)[:200])}", tipo="bot",
+                   responder_a=msg_id)
+        finally:
+            _fila_gerar.task_done()
+
+
+def _botao(cb: dict, autorizados: set[str]) -> None:
+    cfg = config()
+    api = f"https://api.telegram.org/bot{cfg.telegram_token}/answerCallbackQuery"
+    msg = cb.get("message") or {}
+    chat = str((msg.get("chat") or {}).get("id", ""))
+    m = re.fullmatch(r"g:(tv|portal|redes|radio):(\d+)", cb.get("data") or "")
+    if chat not in autorizados or not m:
+        httpx.post(api, json={"callback_query_id": cb["id"]}, timeout=10)
+        return
+    alvo, item_id = m.group(1), int(m.group(2))
+    nomes = {"tv": "a pauta de TV", "portal": "a matéria do portal", "redes": "o post", "radio": "a nota de rádio"}
+    httpx.post(api, json={"callback_query_id": cb["id"], "text": f"Gerando {nomes[alvo]}… chega em instantes."},
+               timeout=10)
+    _fila_gerar.put((chat, msg.get("message_id"), alvo, item_id))
+
+
 def _trabalhador() -> None:
     while True:
         chat, pedido = _fila.get()
@@ -170,13 +205,16 @@ def escutar() -> None:
     while True:
         try:
             r = httpx.get(url, params={"timeout": 5 if albuns else 50, "offset": offset,
-                                       "allowed_updates": '["message","channel_post"]'}, timeout=60)
+                                       "allowed_updates": '["message","channel_post","callback_query"]'}, timeout=60)
             if r.status_code != 200:
                 log.warning("getUpdates %s", r.status_code)
                 time.sleep(10)
                 continue
             for up in r.json().get("result", []):
                 offset = up["update_id"] + 1
+                if up.get("callback_query"):
+                    _botao(up["callback_query"], autorizados)
+                    continue
                 msg = up.get("message") or up.get("channel_post") or {}
                 chat = str((msg.get("chat") or {}).get("id", ""))
                 if chat not in autorizados:
@@ -212,6 +250,7 @@ def escutar() -> None:
 
 def iniciar_em_segundo_plano() -> None:
     threading.Thread(target=_trabalhador, name="bot-fila", daemon=True).start()
+    threading.Thread(target=_gerador, name="bot-gerar", daemon=True).start()
     threading.Thread(target=escutar, name="bot-escuta", daemon=True).start()
 
     def _pre() -> None:

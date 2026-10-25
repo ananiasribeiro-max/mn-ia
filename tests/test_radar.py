@@ -115,3 +115,18 @@ def test_fonte_nova_forma_linha_de_base_propria():
     with sessao() as s:
         nova = s.scalars(select(Item).where(Item.fonte_id == "nova")).one()
         assert nova.alertado and nova.analisado
+
+
+def test_botoes_e_produtos_do_topico(monkeypatch):
+    from mnia.radar import produtos
+    pipeline.gravar_itens([_item("a", "concorrente", "Governo do Piauí abre concurso para professores")], "radar")
+    with sessao() as s:
+        it = s.scalars(select(Item)).one()
+        it.analisado, it.prioridade, it.relevancia, it.plataformas = True, "pauta", 8, ["portal", "tv"]
+        teclado = produtos.botoes(it)
+        item_id = it.id
+    assert [b["callback_data"] for b in teclado[0]] == [f"g:tv:{item_id}", f"g:portal:{item_id}"]
+    monkeypatch.setattr(produtos, "_texto_da_pagina", lambda url: "")
+    r = produtos.gerar(item_id, "portal")
+    txt = produtos.formatar("portal", r)
+    assert "MATÉRIA PORTAL" in txt and "a página não pôde ser lida" in txt

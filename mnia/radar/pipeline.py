@@ -22,6 +22,7 @@ from ..db import Execucao, Item, agora, gerar_hash, item_existe, sessao
 from ..telegram import alerta_tecnico, enviar
 from . import mensagens
 from ..llm import ErroLLM
+from . import produtos
 from .classificador import classificar, normalizar_analise
 
 log = logging.getLogger("mnia.radar")
@@ -198,12 +199,12 @@ def alertar_urgentes() -> int:
             if _ja_alertado_assunto(s, item.assunto_chave):
                 item.alertado = True   # mesmo fato já avisado: não repete
                 continue
-            fila.append((item.id, mensagens.msg_urgente(item)))
+            fila.append((item.id, mensagens.msg_urgente(item), produtos.botoes(item)))
             item.alertado = True
             s.flush()
     # envio fora da transação (não segura o banco enquanto fala com o Telegram)
-    for item_id, texto in fila:
-        enviar(cfg.chat_radar, texto, tipo="urgente", item_id=item_id)
+    for item_id, texto, teclado in fila:
+        enviar(cfg.chat_radar, texto, tipo="urgente", item_id=item_id, botoes=teclado)
     return len(fila)
 
 
@@ -232,11 +233,11 @@ def alertar_topicos() -> int:
             if len(fila) >= cfg.radar_max_envios:
                 continue   # fica para a próxima rodada
             chaves.add(i.assunto_chave)
-            fila.append((i.id, mensagens.msg_topico(i)))
+            fila.append((i.id, mensagens.msg_topico(i), produtos.botoes(i)))
             i.alertado = True
         s.flush()
-    for item_id, texto in fila:
-        enviar(cfg.chat_radar, texto, tipo="topico", item_id=item_id)
+    for item_id, texto, teclado in fila:
+        enviar(cfg.chat_radar, texto, tipo="topico", item_id=item_id, botoes=teclado)
     return len(fila)
 
 
