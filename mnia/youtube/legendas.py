@@ -105,7 +105,7 @@ def obter(video_url: str) -> tuple[list[Trecho], dict]:
     with tempfile.TemporaryDirectory() as tmp:
         opcoes = {
             **opcoes_base(),
-            "skip_download": True, "writesubtitles": True, "writeautomaticsub": True,
+            "skip_download": True, "ignore_no_formats_error": True, "writesubtitles": True, "writeautomaticsub": True,
             "subtitleslangs": IDIOMAS, "subtitlesformat": "vtt",
             "outtmpl": str(Path(tmp) / "%(id)s.%(ext)s"),
         }
