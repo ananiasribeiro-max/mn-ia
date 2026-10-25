@@ -181,8 +181,11 @@ def _central(bruto: Path, saida: Path, corte: dict, trechos, ini: float, fim: fl
     elif pedido == "auto":
         from . import enquadrar
         try:
-            cw, ch, planos = enquadrar.planejar(bruto, proporcao=central.PROPORCAO_VIDEO)
-            crop = enquadrar.filtro_crop(cw, ch, planos)
+            # o selo "CENTRAL meionorte" ocupa o alto: rosto começa a ~1/3 da altura, nunca embaixo do selo
+            folga = central.folga_topo(bruto)
+            cw, ch, planos = enquadrar.planejar(bruto, proporcao=central.PROPORCAO_VIDEO,
+                                                margem_topo=central.MARGEM_ROSTO, folga_topo=folga)
+            crop = enquadrar.filtro_crop(cw, ch, planos, folga_topo=folga)
             log.info("Enquadramento central %s: %s", video_id, [(round(p.t0, 1), p.x, p.y, p.tipo) for p in planos])
         except Exception as e:
             log.warning("Enquadramento automático falhou: %s", e)

@@ -26,6 +26,19 @@ MARCA_PE = BASE / "marca" / "meionorte_empilhado_branco.png"
 FOTOS = RAIZ / "dados" / "fotos"
 AZUL = (28, 72, 240, 255)
 PROPORCAO_VIDEO = 1080 / 960
+# O selo vai de y=100 a ~221 (em 960 px). O alto do rosto fica a 34% da área de vídeo (~326 px),
+# e o cabelo, uns 10% acima: sempre abaixo do selo.
+MARGEM_ROSTO = 0.34
+
+
+def folga_topo(video: Path) -> int:
+    """Faixa preta que pode ser acrescentada em cima do quadro para o rosto descer (35% da altura)."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=height",
+                        "-of", "csv=p=0", str(video)], capture_output=True, text=True, timeout=30)
+    try:
+        return int(int(r.stdout.strip()) * 0.35) // 2 * 2
+    except ValueError:
+        return 0
 
 
 def caixa_citacao(texto: str, destino: Path) -> Path:
