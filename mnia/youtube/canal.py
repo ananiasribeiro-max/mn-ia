@@ -12,12 +12,13 @@ from ..config import RAIZ
 from ..coletores.http import baixar
 
 log = logging.getLogger("mnia.youtube")
-CACHE = RAIZ / "dados" / "youtube_canal.txt"
+CACHE = RAIZ / "dados" / "youtube_canal_v2.txt"
 FEED = "https://www.youtube.com/feeds/videos.xml?channel_id={cid}"
 PADROES_ID = [
-    r'"channelId":"(UC[\w-]{22})"',
-    r'<meta itemprop="identifier" content="(UC[\w-]{22})"',
     r'"externalId":"(UC[\w-]{22})"',
+    r'<meta itemprop="identifier" content="(UC[\w-]{22})"',
+    r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"',
+    r'"channelId":"(UC[\w-]{22})"',
     r'youtube\.com/channel/(UC[\w-]{22})',
 ]
 
@@ -72,6 +73,49 @@ def interpretar_feed(conteudo: str) -> list[Video]:
     return videos
 
 
+def _datas(e: dict) -> datetime | None:
+    if e.get("timestamp"):
+        return datetime.fromtimestamp(int(e["timestamp"]), tz=timezone.utc)
+    d = e.get("upload_date") or e.get("release_date")
+    if d and len(str(d)) == 8:
+        return datetime.strptime(str(d), "%Y%m%d").replace(tzinfo=timezone.utc)
+    return None
+
+
+def listar_via_ytdlp(url_canal: str, por_aba: int = 15) -> list[Video]:
+    """Lista vídeos e transmissões do canal pela própria página (mais novos primeiro)."""
+    import yt_dlp
+
+    from .legendas import opcoes_base
+    base = url_canal.rstrip("/")
+    vistos, videos = set(), []
+    for aba in ("videos", "streams"):
+        opcoes = {**opcoes_base(), "extract_flat": "in_playlist", "playlistend": por_aba,
+                  "skip_download": True, "ignoreerrors": True}
+        try:
+            with yt_dlp.YoutubeDL(opcoes) as ydl:
+                info = ydl.extract_info(f"{base}/{aba}", download=False) or {}
+        except Exception as e:  # aba inexistente no canal
+            log.info("Aba %s indisponível: %s", aba, str(e)[:120])
+            continue
+        for e in info.get("entries") or []:
+            if not e or not e.get("id") or e["id"] in vistos:
+                continue
+            if e.get("live_status") in ("is_upcoming",):
+                continue
+            vistos.add(e["id"])
+            videos.append(Video(video_id=e["id"], titulo=(e.get("title") or "").strip(),
+                                url=f"https://www.youtube.com/watch?v={e['id']}",
+                                publicado_em=_datas(e), descricao=(e.get("description") or "")[:1500]))
+    return videos
+
+
 def listar_videos(url_canal: str) -> list[Video]:
+    try:
+        videos = listar_via_ytdlp(url_canal)
+        if videos:
+            return videos
+    except Exception as e:
+        log.warning("Listagem pelo yt-dlp falhou (%s); tentando o feed.", str(e)[:150])
     cid = resolver_channel_id(url_canal)
     return interpretar_feed(baixar(FEED.format(cid=cid)))

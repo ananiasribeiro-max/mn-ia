@@ -32,14 +32,17 @@ def registrar_novos(videos: list[canal.Video]) -> int:
     with sessao() as s:
         primeira = s.scalar(select(Item.id).where(Item.origem == "youtube").limit(1)) is None
         novos = 0
-        for pos, v in enumerate(sorted(videos, key=lambda v: v.publicado_em or agora(), reverse=True)):
+        # a lista já vem dos mais novos para os mais antigos; com datas, reordena por elas
+        if all(v.publicado_em for v in videos):
+            videos = sorted(videos, key=lambda v: v.publicado_em, reverse=True)
+        for pos, v in enumerate(videos):
             h = gerar_hash("youtube", v.video_id, v.url)
             if item_existe(s, h):
                 continue
             pendente = (not primeira) or pos == 0
             s.add(Item(hash=h, origem="youtube", fonte_id="youtube", fonte_nome="Meio Norte+ (YouTube)",
                        fonte_tipo="proprio", url=v.url, titulo=v.titulo, texto=v.descricao,
-                       publicado_em=_utc_naive(v.publicado_em), analisado=not pendente,
+                       publicado_em=_utc_naive(v.publicado_em) or agora(), analisado=not pendente,
                        analise_extra={"video_id": v.video_id, "processado": not pendente, "tentativas": 0}))
             novos += 1
     return novos
