@@ -138,3 +138,23 @@ def test_processar_video_completo(monkeypatch, tmp_path):
         tipos = sorted(a.tipo for a in s.scalars(select(Alerta)))
         assert tipos == ["materia", "post"]  # o corte simulado não grava alerta, só o log simulado
         assert s.get(Item, item_id).analisado is True
+
+
+def test_tres_modelos_de_corte_renderizam(tmp_path):
+    import shutil
+    import subprocess
+    import pytest
+    if not shutil.which("ffmpeg"):
+        pytest.skip("sem ffmpeg")
+    from mnia.video import layouts
+    from mnia.youtube.legendas import Trecho
+    entrada = tmp_path / "in.mp4"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30",
+                    "-f", "lavfi", "-i", "sine", "-t", "2", "-pix_fmt", "yuv420p", str(entrada)], check=True)
+    for m in layouts.MODELOS:
+        out = layouts.renderizar(entrada, tmp_path / f"{m}.mp4", m, "Manchete de teste com acentuação: São João",
+                                 [Trecho(0, 2, "uma frase de teste para a legenda")], 0, 2)
+        info = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                               "stream=width,height,sample_aspect_ratio", "-of", "csv=p=0", str(out)],
+                              capture_output=True, text=True).stdout.strip()
+        assert info == "1080,1920,1:1", (m, info)

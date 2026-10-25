@@ -136,13 +136,30 @@ def duracao(video: Path) -> int:
         return 0
 
 
-def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho], n: int) -> Path:
+def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho], n: int,
+                modelo: str | None = None) -> Path:
+    import os
+    from . import layouts
+    modelo = modelo or os.getenv("MNIA_CORTE_MODELO", "card")
     ini, fim = float(corte["ini_s"]), float(corte["fim_s"])
     pasta = PASTA / video_id
     bruto = baixar_trecho(video_url, ini, fim, pasta / f"bruto_{n}.mp4")
     try:
-        saida = pasta / f"{n:02d}-{nome_seguro(corte.get('titulo', 'corte'))}.mp4"
-        return montar_vertical(bruto, saida, corte.get("titulo", ""), srt_do_trecho(trechos, ini, fim))
+        saida = pasta / f"{n:02d}-{modelo}-{nome_seguro(corte.get('titulo', 'corte'))}.mp4"
+        return layouts.renderizar(bruto, saida, modelo, corte.get("titulo", ""), trechos, ini, fim)
+    finally:
+        bruto.unlink(missing_ok=True)
+
+
+def comparar_modelos(video_id: str, video_url: str, corte: dict, trechos: list[Trecho]) -> list[tuple[str, Path]]:
+    """Mesmo trecho nos três modelos, para a equipe escolher o visual."""
+    from . import layouts
+    ini, fim = float(corte["ini_s"]), float(corte["fim_s"])
+    pasta = PASTA / video_id
+    bruto = baixar_trecho(video_url, ini, fim, pasta / "bruto_modelos.mp4")
+    try:
+        return [(m, layouts.renderizar(bruto, pasta / f"modelo-{m}.mp4", m, corte.get("titulo", ""),
+                                       trechos, ini, fim)) for m in layouts.MODELOS]
     finally:
         bruto.unlink(missing_ok=True)
 

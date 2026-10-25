@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY mnia ./mnia
 COPY config ./config
+COPY assets ./assets
 
 RUN useradd -m mnia && mkdir -p /app/dados && chown -R mnia /app
 USER mnia

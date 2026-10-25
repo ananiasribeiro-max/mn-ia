@@ -100,6 +100,31 @@ def refazer_cortes(item_id: int) -> dict:
     return {"cortes": feitos, "falhas": falhas}
 
 
+def enviar_modelos(item_id: int) -> dict:
+    """Envia o 1º corte de um vídeo nos três modelos visuais, para comparação."""
+    from ..video.layouts import MODELOS
+    cfg = config()
+    with sessao() as s:
+        it = s.get(Item, item_id)
+        vid, url, titulo, descricao = it.analise_extra["video_id"], it.url, it.titulo, it.texto or ""
+        cortes = (it.analise_extra or {}).get("cortes_def")
+    trechos, info = legendas.obter(url)
+    if not cortes:
+        duracao = float(info.get("duration") or trechos[-1].fim)
+        cortes = dig.gerar(titulo, descricao, legendas.transcricao_compacta(trechos), duracao).get("cortes", [])
+        _marcar(item_id, cortes_def=cortes)
+    if not cortes:
+        return {"enviados": 0}
+    enviados = 0
+    for modelo, arq in vc.comparar_modelos(vid, url, cortes[0], trechos):
+        leg = (f"🎨 <b>MODELO: {esc(modelo.upper())}</b>\n{esc(MODELOS[modelo])}\n\n"
+               f"Para adotar: MNIA_CORTE_MODELO={esc(modelo)}")
+        enviar_video(cfg.chat_digital, arq, leg, item_id=item_id, duracao=vc.duracao(arq),
+                     capa=vc.gerar_capa(arq))
+        enviados += 1
+    return {"enviados": enviados}
+
+
 def processar_video(item_id: int) -> dict:
     cfg = config()
     with sessao() as s:
