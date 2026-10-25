@@ -76,7 +76,7 @@ def _enviar_cortes(item_id: int, vid: str, url: str, titulo: str, cortes: list, 
                    f"<b>Legenda sugerida:</b> {esc(c.get('legenda', ''))}\n"
                    f"<i>Por que: {esc(c.get('motivo', ''))}</i>\n"
                    f"<i>1080x1920 (9:16), pronto para Reels e Shorts. Aprovar antes de publicar.</i>")
-            enviar_video(cfg.chat_digital, arq, leg, item_id=item_id,
+            enviar_video(cfg.chat_cortes, arq, leg, item_id=item_id,
                          duracao=vc.duracao(arq), capa=vc.gerar_capa(arq))
             feitos += 1
         except Exception as e:
@@ -137,7 +137,7 @@ def enviar_modelos(item_id: int) -> dict:
     for modelo, arq in vc.comparar_modelos(vid, url, cortes[0], trechos):
         leg = (f"🎨 <b>MODELO: {esc(modelo.upper())}</b>\n{esc(MODELOS[modelo])}\n\n"
                f"Para adotar: MNIA_CORTE_MODELO={esc(modelo)}")
-        enviar_video(cfg.chat_digital, arq, leg, item_id=item_id, duracao=vc.duracao(arq),
+        enviar_video(cfg.chat_cortes, arq, leg, item_id=item_id, duracao=vc.duracao(arq),
                      capa=vc.gerar_capa(arq))
         enviados += 1
     return {"enviados": enviados}

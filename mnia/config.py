@@ -62,6 +62,9 @@ class Config:
         "TELEGRAM_CHAT_PRODUCAO", os.getenv("TELEGRAM_CHAT_RADAR", "")))
     chat_digital: str = field(default_factory=lambda: os.getenv(
         "TELEGRAM_CHAT_DIGITAL", os.getenv("TELEGRAM_CHAT_RADAR", "")))
+    # Canal só de cortes (Cortes MN); sem ele, os cortes vão para o grupo digital/radar
+    chat_cortes: str = field(default_factory=lambda: os.getenv(
+        "TELEGRAM_CHAT_CORTES", os.getenv("TELEGRAM_CHAT_DIGITAL", os.getenv("TELEGRAM_CHAT_RADAR", ""))))
 
     # YouTube / vídeo
     youtube_canal: str = field(default_factory=lambda: os.getenv(
