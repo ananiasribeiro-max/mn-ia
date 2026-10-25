@@ -179,13 +179,13 @@ def quebrar_px(texto: str, fonte: Path, tam: int, largura: int) -> list[str]:
     return linhas
 
 
-def manchete_mn(titulo: str, destaque: str = "") -> tuple[list[str], set[int], int]:
+def manchete_mn(titulo: str, destaque: str = "", max_linhas: int = 4) -> tuple[list[str], set[int], int]:
     """Linhas da manchete, índices das linhas em destaque e tamanho da fonte."""
-    for tam in (76, 68, 60):
+    for tam in (76, 68, 60, 54):
         linhas = quebrar_px(titulo, INTER_BLACK, tam, 940)
-        if len(linhas) <= 4:
+        if len(linhas) <= max_linhas:
             break
-    linhas = linhas[:4]
+    linhas = linhas[:max_linhas]
     marcadas: set[int] = set()
     d = " ".join(destaque.split()).lower()
     if d and d in " ".join(linhas).lower():
@@ -200,8 +200,32 @@ def manchete_mn(titulo: str, destaque: str = "") -> tuple[list[str], set[int], i
     return linhas, marcadas, tam
 
 
+def _fotos_mn(f: list[str], ant: str, fotos: list[tuple[Path, str]], primeira_entrada: int,
+              pasta: Path, credito: str, topo: int) -> str:
+    """Faixa de fotos no pé do modelo MN (1 ou 2 fotos lado a lado, com nome e crédito)."""
+    n = len(fotos)
+    alt = 300
+    larg = 952 if n == 1 else 460
+    for i, (_, nome) in enumerate(fotos):
+        x = 64 + i * (larg + 32)
+        f.append(f"[{primeira_entrada + i}:v]scale={larg}:{alt}:force_original_aspect_ratio=increase,"
+                 f"crop={larg}:{alt}:(iw-{larg})/2:(ih-{alt})*0.2,setsar=1[foto{i}]")
+        f.append(f"[{ant}][foto{i}]overlay={x}:{topo}[pf{i}]")
+        ant = f"pf{i}"
+        if nome:
+            f.append(_dt(ant, f"pn{i}", _texto(pasta, f"nome{i}.txt", nome.upper()), INTER_BLACK, 28, "white",
+                         str(x + 14), str(topo + alt - 50), f":box=1:boxcolor={VERMELHO}:boxborderw=10"))
+            ant = f"pn{i}"
+    if credito:
+        f.append(_dt(ant, "pcred", _texto(pasta, "credito.txt", credito), INTER_MED, 20, "white@0.75",
+                     "1016-text_w", str(topo + alt + 10)))
+        ant = "pcred"
+    return ant
+
+
 def filtros(modelo: str, titulo: str, marca: Marca, pasta: Path, ass: Path | None,
-            tem_logo: bool, destaque: str = "") -> tuple[list[str], str]:
+            tem_logo: bool, destaque: str = "", fotos: list[tuple[Path, str]] | None = None,
+            credito: str = "") -> tuple[list[str], str]:
     """Devolve (lista de filtros, rótulo final). Entrada 0 = vídeo; entrada 1 = logo (se houver)."""
     f: list[str] = []
     leg = f"subtitles='{_esc(ass)}':fontsdir='{_esc(FONTES)}'" if ass else "null"
@@ -229,7 +253,7 @@ def filtros(modelo: str, titulo: str, marca: Marca, pasta: Path, ass: Path | Non
             _dt("c3", "c4", _texto(pasta, "marca.txt", "meionorte"), INTER_BLACK, 34, "white",
                 "1022-text_w", "1122"),
         ]
-        linhas, marcadas, tam = manchete_mn(titulo, destaque)
+        linhas, marcadas, tam = manchete_mn(titulo, destaque, 3 if fotos else 4)
         passo = int(tam * 1.04)
         ant = "c4"
         for i, l in enumerate(linhas):
@@ -239,6 +263,10 @@ def filtros(modelo: str, titulo: str, marca: Marca, pasta: Path, ass: Path | Non
             x = "72" if i in marcadas else "64"
             f.append(_dt(ant, f"h{i}", _texto(pasta, f"l{i}.txt", l), INTER_BLACK, tam, cor, x, str(y), extra))
             ant = f"h{i}"
+        if fotos:
+            fim_manchete = 1268 + len(linhas) * passo
+            topo = min(max(fim_manchete + 30, 1540), 1580)
+            ant = _fotos_mn(f, ant, fotos[:2], 2 if tem_logo else 1, pasta, credito, topo)
         f.append(f"[{ant}]setsar=1[v]")
         return f, "[v]"
 
@@ -342,7 +370,8 @@ def legenda_y(modelo: str, titulo: str) -> int:
 
 def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, ini: float, fim: float,
                marca: Marca | None = None, duracao_max: float | None = None, destaque: str = "",
-               quadro: tuple[float, float, float, float] | None = None, crop: str | None = None) -> Path:
+               quadro: tuple[float, float, float, float] | None = None, crop: str | None = None,
+               fotos: list[tuple[Path, str]] | None = None, credito: str = "") -> Path:
     """Monta o corte vertical no modelo escolhido. trechos em tempo do vídeo original; ini/fim do corte."""
     import shutil
     import subprocess
@@ -356,7 +385,8 @@ def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, in
         ass = pasta / "legenda.ass"
         ass.write_text(ass_legenda(modelo, trechos, ini, fim, legenda_y(modelo, titulo)), encoding="utf-8")
         logo = LOGO if LOGO.exists() else (LOGO_PADRAO if modelo == "mn" and LOGO_PADRAO.exists() else None)
-        grafo, rotulo = filtros(modelo, titulo, marca, pasta, ass, logo is not None, destaque)
+        fotos = [(Path(a), n) for a, n in (fotos or []) if Path(a).exists()][:2] if modelo == "mn" else []
+        grafo, rotulo = filtros(modelo, titulo, marca, pasta, ass, logo is not None, destaque, fotos, credito)
         if quadro and not crop:
             x, y, w, h = quadro
             crop = f"crop=trunc(iw*{w}/2)*2:trunc(ih*{h}/2)*2:trunc(iw*{x}):trunc(ih*{y})"
@@ -366,6 +396,8 @@ def renderizar(entrada: Path, saida: Path, modelo: str, titulo: str, trechos, in
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(entrada)]
         if logo:
             cmd += ["-i", str(logo)]
+        for arq, _ in fotos:
+            cmd += ["-i", str(arq)]
         cmd += ["-filter_complex", ";".join(grafo), "-map", rotulo, "-map", "0:a?"]
         if duracao_max:
             cmd += ["-t", f"{duracao_max:.2f}"]

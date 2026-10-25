@@ -16,6 +16,9 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from pathlib import Path
+
+from .config import RAIZ
 
 from .config import config, fontes
 
@@ -86,6 +89,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("alvo", nargs="?", help="para 'video'/'recortar'/'corte': endereço de um vídeo do YouTube")
     p.add_argument("--inicio", help="para 'corte': ponto de início no vídeo (mm:ss ou hh:mm:ss)")
     p.add_argument("--quadro", default="", help="para 'corte': enquadramento (ex.: comentarista ou x,y,l,a)")
+    p.add_argument("--foto", action="append", default=[],
+                   help="para 'corte': foto no pé, como arquivo:Nome (até 2; arquivos em dados/fotos)")
+    p.add_argument("--credito", default="", help="para 'corte': crédito das fotos (ex.: Fotos: Agência Brasil)")
     a = p.parse_args(argv)
     _log()
 
@@ -152,7 +158,14 @@ def main(argv: list[str] | None = None) -> None:
             from .youtube.pipeline import corte_indicado
             if not a.inicio:
                 sys.exit("Informe --inicio mm:ss")
-            print(corte_indicado(item_id, mmss(a.inicio), a.quadro))
+            fotos = []
+            for fv in a.foto:
+                arq, _, nome = fv.partition(":")
+                caminho = Path(arq) if Path(arq).is_absolute() else RAIZ / "dados" / "fotos" / arq
+                if not caminho.exists():
+                    sys.exit(f"Foto não encontrada: {caminho}")
+                fotos.append((str(caminho), nome))
+            print(corte_indicado(item_id, mmss(a.inicio), a.quadro, fotos, a.credito))
         else:
             acao = {"recortar": refazer_cortes, "modelos": enviar_modelos}.get(a.comando, processar_video)
             print(acao(item_id))

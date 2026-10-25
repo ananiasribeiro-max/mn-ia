@@ -159,7 +159,8 @@ def gerar_corte(video_id: str, video_url: str, corte: dict, trechos: list[Trecho
             except Exception as e:  # sem OpenCV ou vídeo estranho: segue sem recorte
                 log.warning("Enquadramento automático falhou: %s", e)
         return layouts.renderizar(bruto, saida, modelo, corte.get("titulo", ""), trechos, ini, fim,
-                                  destaque=corte.get("destaque", ""), quadro=quadro, crop=crop)
+                                  destaque=corte.get("destaque", ""), quadro=quadro, crop=crop,
+                                  fotos=corte.get("fotos"), credito=corte.get("credito", ""))
     finally:
         bruto.unlink(missing_ok=True)
 

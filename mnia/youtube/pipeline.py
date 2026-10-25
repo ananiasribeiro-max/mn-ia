@@ -100,7 +100,8 @@ def refazer_cortes(item_id: int) -> dict:
     return {"cortes": feitos, "falhas": falhas}
 
 
-def corte_indicado(item_id: int, inicio: float, quadro: str = "") -> dict:
+def corte_indicado(item_id: int, inicio: float, quadro: str = "", fotos: list | None = None,
+                   credito: str = "") -> dict:
     """Um corte a partir do ponto que a redação indicou (ex.: 14:01), com enquadramento opcional."""
     with sessao() as s:
         it = s.get(Item, item_id)
@@ -111,6 +112,8 @@ def corte_indicado(item_id: int, inicio: float, quadro: str = "") -> dict:
     c = dig.corte_indicado(titulo, trechos, inicio)
     if quadro:
         c["quadro"] = quadro
+    if fotos:
+        c["fotos"], c["credito"] = fotos, credito
     feitos, falhas = _enviar_cortes(item_id, vid, url, titulo, [c], trechos)
     return {"cortes": feitos, "falhas": falhas, "inicio": c["inicio"], "fim": c["fim"], "titulo": c.get("titulo")}
 
