@@ -20,7 +20,10 @@ Para CADA item devolva:
 - risco: verde | amarelo | vermelho
 - editoria: uma de {editorias}
 - plataformas: lista com as mais indicadas entre {plataformas}
-- resumo: 1 frase objetiva com o fato (sem inventar nada além do título/texto)
+- resumo: 1 frase objetiva com o fato, começando DIRETO pela informação (sujeito + verbo), como
+  uma manchete-lead. PROIBIDO começar com "Segundo o título", "Segundo a notícia", "O item",
+  "A matéria", "A notícia informa", "De acordo com o texto" ou parecido. Sem inventar nada além
+  do título/texto.
 - porque_importa: 1 frase dizendo por que interessa ao público do grupo
 - assunto_chave: rótulo curto e estável do FATO (ex.: "greve-professores-teresina-out26").
   Se o fato já aparece na lista ASSUNTOS RECENTES, REUTILIZE exatamente o mesmo rótulo.
@@ -140,6 +143,18 @@ def classificar(itens: list[dict], assuntos_recentes: list[str], *, modulo: str 
     return [a for a in analises if isinstance(a, dict) and "id" in a]
 
 
+_PREFIXOS = re.compile(
+    r"^\s*(segundo|de acordo com|conforme)\s+(o|a)\s+(t[ií]tulo|not[ií]cia|mat[ée]ria|texto|item|reportagem|"
+    r"portal|fonte|manchete)[^,:]*[,:]\s*|^\s*(o|a)\s+(t[ií]tulo|not[ií]cia|mat[ée]ria|texto|item|reportagem|"
+    r"manchete)\s+(informa|diz|relata|afirma|aponta|mostra|destaca|noticia)(\s+que)?\s*", re.IGNORECASE)
+
+
+def limpar_resumo(t: str) -> str:
+    """Tira muletas como "Segundo o título, ..." e começa pela informação."""
+    t = _PREFIXOS.sub("", t.strip()).strip()
+    return t[:1].upper() + t[1:] if t else t
+
+
 def normalizar_analise(a: dict) -> dict:
     """Garante valores válidos mesmo se a IA devolver algo fora do padrão."""
     prio = str(a.get("prioridade", "acompanhar")).lower()
@@ -163,6 +178,6 @@ def normalizar_analise(a: dict) -> dict:
         "_local": {"abrangencia": abr, "local": str(a.get("local") or "")[:60],
                    "liga_piaui": bool(a.get("liga_piaui"))},
         "relevancia": rel, "prioridade": prio, "risco": risco, "editoria": edit,
-        "plataformas": plats, "resumo": (a.get("resumo") or "")[:1000],
+        "plataformas": plats, "resumo": limpar_resumo(a.get("resumo") or "")[:1000],
         "porque_importa": (a.get("porque_importa") or "")[:1000], "assunto_chave": chave,
     }

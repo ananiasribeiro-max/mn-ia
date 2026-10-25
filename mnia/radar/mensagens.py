@@ -38,24 +38,34 @@ NOME_UF = {"PI": "Piauí", "MA": "Maranhão", "CE": "Ceará", "PA": "Pará", "AM
            "RR": "Roraima", "SC": "Santa Catarina", "SP": "São Paulo", "DF": "Distrito Federal"}
 
 
-def linha_local(item: Item) -> str:
-    """📍 Pauta local (outro estado / Piauí) ou 🌎 nacional, a partir da análise e do estado da fonte."""
+def lugar(item: Item) -> str:
+    """Cidade e estado por extenso (ex.: "São Luís, Maranhão"); "Brasil" no nacional sem lugar."""
     extra = item.analise_extra or {}
     abr, local, uf = extra.get("abrangencia"), (extra.get("local") or "").strip(), extra.get("uf_fonte", "")
-    if not abr:
-        abr = "piaui" if uf == "PI" else "outro_estado" if uf and uf != "BR" else ""
-    if abr == "piaui":
-        return f"📍 <b>Pauta local · Piauí</b>" + (f" ({esc(local)})" if local and local not in ("PI", "Piauí") else "")
-    if abr == "outro_estado":
-        lugar = local or NOME_UF.get(uf, uf)
-        sufixo = f" — {esc(NOME_UF.get(lugar, lugar))}" if lugar else ""
-        liga = " · 🔗 tem ligação com o Piauí" if extra.get("liga_piaui") else ""
-        return f"📍 <b>Pauta local de outro estado</b>{sufixo}{liga}"
-    if abr == "nacional":
-        return "🇧🇷 Nacional" + (" · 🔗 tem ligação com o Piauí" if extra.get("liga_piaui") else "")
     if abr == "internacional":
-        return "🌎 Internacional"
-    return ""
+        return local or "Internacional"
+    cidade, estado = "", ""
+    if local:
+        partes = [p.strip() for p in local.replace(" - ", "-").replace(",", "-").split("-") if p.strip()]
+        if partes and partes[-1].upper() in NOME_UF or (partes and partes[-1] in NOME_UF.values()):
+            estado = NOME_UF.get(partes[-1].upper(), partes[-1])
+            cidade = "-".join(partes[:-1])
+        elif partes:
+            cidade = local
+    if not estado and abr != "nacional":
+        estado = NOME_UF.get(uf, "") if uf and uf != "BR" else ""
+    if cidade and estado and cidade != estado:
+        return f"{cidade}, {estado}"
+    return estado or cidade or ("Brasil" if abr == "nacional" or uf == "BR" else "")
+
+
+def linha_local(item: Item) -> str:
+    texto = lugar(item)
+    if not texto:
+        return ""
+    liga = " · 🔗 ligação com o Piauí" if (item.analise_extra or {}).get("liga_piaui") \
+        and (item.analise_extra or {}).get("abrangencia") != "piaui" else ""
+    return f"📍 {esc(texto)}{liga}"
 
 
 def bloco_item(item: Item, detalhado: bool = True) -> str:
