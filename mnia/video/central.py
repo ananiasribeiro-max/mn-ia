@@ -97,8 +97,40 @@ def fotos_da_biblioteca(texto: str, maximo: int = 2) -> list[Path]:
     return [f for _, f in sorted(achadas)][:maximo]
 
 
+# Faixas verticais do modelo (px em 1080x1920)
+LEGENDA_Y = 885          # centro da legenda da fala: pé da área de vídeo, abaixo do rosto
+CAIXA_TOPO = 975         # caixa azul começa logo abaixo do vídeo (não cobre o rosto nem a legenda)
+MARCA_PE_Y = 1700        # "meio norte" no pé
+ROSTO_FOTO = 0.56        # centro do rosto nas fotos: na faixa livre entre a caixa e a marca
+
+
+def _crop_foto(arq: Path, w: int, h: int) -> str:
+    """Recorte da foto que põe o rosto na faixa visível (entre a caixa azul e a marca do pé)."""
+    padrao = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}:(iw-{w})/2:(ih-{h})*0.15"
+    try:
+        import cv2
+        from .enquadrar import _Detector
+        img = cv2.imread(str(arq))
+        if img is None:
+            return padrao
+        ih, iw = img.shape[:2]
+        rostos = _Detector()(img, int(min(ih, iw) * 0.05))
+        if not rostos:
+            return padrao
+        x, y, rw, rh = max(rostos, key=lambda r: r[2] * r[3])
+        esc = max(w / iw, h / ih)
+        sw, sh = int(iw * esc + 0.5), int(ih * esc + 0.5)
+        cx, cy = (x + rw / 2) * esc, (y + rh / 2) * esc
+        px = int(min(max(0, cx - w / 2), sw - w))
+        py = int(min(max(0, cy - h * ROSTO_FOTO), sh - h))
+        return f"scale={sw}:{sh},crop={w}:{h}:{px}:{py}"
+    except Exception as e:
+        log.warning("Recorte da foto %s pelo rosto falhou: %s", arq.name, e)
+        return padrao
+
+
 def renderizar(entrada: Path, saida: Path, citacao: str, fotos: list[Path] | None = None,
-               crop: str | None = None) -> Path:
+               crop: str | None = None, trechos=None, ini: float = 0.0, fim: float = 0.0) -> Path:
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg não instalado")
     saida.parent.mkdir(parents=True, exist_ok=True)
@@ -117,21 +149,24 @@ def renderizar(entrada: Path, saida: Path, citacao: str, fotos: list[Path] | Non
              "color=c=black:s=1080x1920:r=30[fundo]",
              "[fundo][vid]overlay=0:0:shortest=1[b0]"]
         if len(fotos) == 2:
-            g += ["[4:v]scale=540:960:force_original_aspect_ratio=increase,crop=540:960:(iw-540)/2:(ih-960)*0.15,"
-                  "setsar=1[f0]",
-                  "[5:v]scale=540:960:force_original_aspect_ratio=increase,crop=540:960:(iw-540)/2:(ih-960)*0.15,"
-                  "setsar=1[f1]",
+            g += [f"[4:v]{_crop_foto(fotos[0], 540, 960)},setsar=1[f0]",
+                  f"[5:v]{_crop_foto(fotos[1], 540, 960)},setsar=1[f1]",
                   "[b0][f0]overlay=0:960[b1]", "[b1][f1]overlay=540:960[b2]"]
         elif len(fotos) == 1:
-            g += ["[4:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960:(iw-1080)/2:(ih-960)*0.15,"
-                  "setsar=1[f0]", "[b0][f0]overlay=0:960[b2]"]
+            g += [f"[4:v]{_crop_foto(fotos[0], 1080, 960)},setsar=1[f0]", "[b0][f0]overlay=0:960[b2]"]
         else:  # sem foto: repete o vídeo desfocado na metade de baixo
             g += ["[0:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960,boxblur=20:2,"
                   "eq=brightness=-0.1,setsar=1[fb]", "[b0][fb]overlay=0:960:shortest=1[b2]"]
         g += ["[1:v]scale=400:-1[selo]", "[b2][selo]overlay=(W-w)/2:100[b3]",
-              "[2:v]scale=250:-1[pe]", "[b3][pe]overlay=(W-w)/2:1640[b4]",
-              f"[b4][3:v]overlay=73:{960 - alt_caixa // 2}[b5]",
-              "[b5]setsar=1[v]"]
+              "[2:v]scale=250:-1[pe]", f"[b3][pe]overlay=(W-w)/2:{MARCA_PE_Y}[b4]",
+              f"[b4][3:v]overlay=73:{CAIXA_TOPO}[b5]"]
+        if trechos:  # legenda da fala no pé da área de vídeo (a maioria assiste sem som)
+            from .layouts import FONTES, _esc, ass_legenda
+            ass = pasta / "legenda.ass"
+            ass.write_text(ass_legenda("central", trechos, ini, fim, LEGENDA_Y), encoding="utf-8")
+            g.append(f"[b5]subtitles='{_esc(ass)}':fontsdir='{_esc(FONTES)}',setsar=1[v]")
+        else:
+            g.append("[b5]setsar=1[v]")
         cmd = ["ffmpeg", "-y", "-loglevel", "error", *entradas, "-filter_complex", ";".join(g),
                "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-preset", "superfast", "-crf", "23",
                "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.1", "-aspect", "9:16", "-r", "30",

@@ -102,6 +102,7 @@ def _ts_ass(seg: float) -> str:
 
 
 ESTILOS_ASS = {
+    "central": ("Inter Display ExtraBold", 56, "&H00FFFFFF", "&H5A000000", 3, 12, 2, 0),
     "mn": ("Inter Display ExtraBold", 56, "&H00FFFFFF", "&H00000000", 1, 5, 2, 0),
     # nome: (fonte, tamanho, cor primária, cor contorno/caixa, borda, contorno, alinhamento, margemV)
     "card": ("Poppins", 66, "&H00682C20", "&H0000D2FF", 3, 16, 2, 0),
@@ -109,7 +110,7 @@ ESTILOS_ASS = {
     "manchete": ("Poppins", 62, "&H00FFFFFF", "&H00000000", 3, 14, 2, 0),
 }
 # Onde a legenda fica (centro vertical em px) em cada modelo
-LEGENDA_Y = {"mn": 965, "card": 1405, "cheia": 1330, "manchete": 1335}
+LEGENDA_Y = {"central": 885, "mn": 965, "card": 1405, "cheia": 1330, "manchete": 1335}
 
 
 def ass_legenda(modelo: str, trechos, ini: float, fim: float, y: int | None = None) -> str:

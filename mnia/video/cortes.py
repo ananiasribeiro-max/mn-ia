@@ -195,7 +195,7 @@ def _central(bruto: Path, saida: Path, corte: dict, trechos, ini: float, fim: fl
         fala = " ".join(t.texto for t in trechos if ini <= t.inicio <= fim)
         fotos = central.fotos_da_biblioteca(f"{citacao} {corte.get('titulo', '')} {fala}")
         corte["fotos_usadas"] = [f.name for f in fotos]
-    return central.renderizar(bruto, saida, citacao, fotos, crop)
+    return central.renderizar(bruto, saida, citacao, fotos, crop, trechos=trechos, ini=ini, fim=fim)
 
 
 def comparar_modelos(video_id: str, video_url: str, corte: dict, trechos: list[Trecho]) -> list[tuple[str, Path]]:
