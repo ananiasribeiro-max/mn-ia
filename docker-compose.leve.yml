@@ -1,0 +1,22 @@
+# ============================================================
+#  MN-IA — modo LEVE (máquinas pequenas, ex.: Oracle Free AMD 1 GB)
+#  Sem PostgreSQL: o banco é um arquivo SQLite em ./dados/mnia.db
+#  Uso:  docker compose -f docker-compose.leve.yml up -d
+#  As chaves ficam no arquivo .env (mesmo modelo do .env.example).
+# ============================================================
+name: mn-ia
+
+services:
+  mnia:
+    image: ghcr.io/ananiasribeiro-max/mn-ia:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MNIA_DATABASE_URL: sqlite:////app/dados/mnia.db
+      MNIA_MAX_ITENS_RODADA: "40"
+    volumes:
+      - ./dados:/app/dados
+    mem_limit: 700m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

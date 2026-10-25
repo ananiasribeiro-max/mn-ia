@@ -122,7 +122,19 @@ def engine():
         url = config().database_url
         if url.startswith("sqlite:///"):
             Path(url.replace("sqlite:///", "")).parent.mkdir(parents=True, exist_ok=True)
-        _engine = create_engine(url, future=True, pool_pre_ping=True)
+            # Modo leve: espera até 30 s se outra tarefa estiver gravando e usa WAL
+            _engine = create_engine(url, future=True, connect_args={"timeout": 30,
+                                                                    "check_same_thread": False})
+            from sqlalchemy import event
+
+            @event.listens_for(_engine, "connect")
+            def _wal(conn, _):
+                cur = conn.cursor()
+                cur.execute("PRAGMA journal_mode=WAL")
+                cur.execute("PRAGMA busy_timeout=30000")
+                cur.close()
+        else:
+            _engine = create_engine(url, future=True, pool_pre_ping=True)
         _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine
 
