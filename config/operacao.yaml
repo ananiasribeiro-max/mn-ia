@@ -1,0 +1,8 @@
+# ============================================================
+#  CHAVE GERAL DA OPERAÇÃO
+#  pausado: true  -> o MN-IA fica parado: nenhuma chamada ao Claude, nenhum envio,
+#                    nenhum radar/corte/bot. O servidor continua de pé, esperando.
+#  pausado: false -> operação normal.
+#  A mudança chega ao servidor sozinha (atualização automática), em até ~15 min.
+# ============================================================
+pausado: true

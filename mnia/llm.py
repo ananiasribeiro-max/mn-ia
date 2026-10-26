@@ -128,6 +128,9 @@ def chamar(
         if simulador is None:
             raise ErroLLM(f"{modulo}: modo simulado sem simulador definido")
         return simulador()
+    from .config import operacao_pausada
+    if operacao_pausada():
+        raise ErroLLM(f"{modulo}: operação pausada (config/operacao.yaml) — Claude desligado")
 
     sistema = texto_regras() + "\n\n=== TAREFA ===\n" + tarefa
     if json_saida:

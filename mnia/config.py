@@ -117,3 +117,13 @@ def regras_casa() -> dict:
 def fontes() -> list[dict]:
     dados = yaml.safe_load((PASTA_CONFIG / "fontes.yaml").read_text(encoding="utf-8"))
     return [f for f in dados.get("fontes", []) if f.get("ativo", True)]
+
+
+def operacao_pausada() -> bool:
+    """Chave geral (config/operacao.yaml). Pausado = nenhuma chamada ao Claude nem envio."""
+    import yaml
+    arq = RAIZ / "config" / "operacao.yaml"
+    try:
+        return bool((yaml.safe_load(arq.read_text(encoding="utf-8")) or {}).get("pausado", False))
+    except FileNotFoundError:
+        return False

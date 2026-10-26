@@ -60,6 +60,14 @@ def _seguro(nome, func_):
 def iniciar() -> None:
     cfg = config()
     init_db()
+    from .config import operacao_pausada
+    if operacao_pausada():
+        # Operação pausada pela direção: não chama o Claude, não coleta, não envia nada.
+        # Fica de pé só para a atualização automática trazer a versão que religa.
+        import time
+        log.warning("MN-IA PAUSADO (config/operacao.yaml). Nada será executado.")
+        while True:
+            time.sleep(3600)
     hh, mm = (int(x) for x in cfg.clipping_horario.split(":"))
     ag = BlockingScheduler(timezone=cfg.fuso)
     ag.add_job(_seguro("radar", rodar_radar), "interval", minutes=cfg.radar_intervalo_min,
